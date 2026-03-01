@@ -1,0 +1,25 @@
+name: SimpleKits
+version: 1.0
+api-version: '1.13'
+main: local.simplekits.SimpleKitsPlugin
+description: GKits, gkit gems, and mystery spawners
+authors: [Dev]
+
+commands:
+  gkits:
+    description: Open gkits GUI
+    aliases: [kitgui]
+  kits:
+    description: Open rank kits GUI
+  gkit:
+    description: Claim a specific gkit
+    usage: /gkit <kitname>
+  gkitgem:
+    description: Give gkit gems
+    usage: /gkitgem give <player> <kit|random> [amount]
+  gkitlock:
+    description: Lock gkits for players
+    usage: /gkitlock <all|player <name>>
+  spawner:
+    description: Get a mystery spawner
+    usage: /spawner [open]
