@@ -59,8 +59,8 @@ public class GKitCommand implements CommandExecutor {
             return true;
         }
 
-        // Claim the kit
-        gemManager.unlockKit(player, kitName);
+        // Claim the kit (give items)
+        gemManager.giveKitItems(player, kit);
         return true;
     }
 }

@@ -1,10 +1,17 @@
 package local.simplekits;
 
+import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+
+import java.util.List;
 
 /**
  * Listener for gkits GUI interactions
@@ -21,8 +28,18 @@ public class GKitGuiListener implements Listener {
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
+        String title = event.getView().getTitle();
+
+        if (title != null && title.contains("GKit Preview")) {
+            event.setCancelled(true);
+            if (event.getCurrentItem() != null && event.getCurrentItem().getType() == Material.ARROW) {
+                event.getWhoClicked().closeInventory();
+            }
+            return;
+        }
+
         // Check if this is a gkits GUI
-        if (event.getView().getTitle() == null || !event.getView().getTitle().contains("GKits")) {
+        if (title == null || !title.contains("GKits")) {
             return;
         }
         
@@ -40,10 +57,45 @@ public class GKitGuiListener implements Listener {
         // Find which kit was clicked
         for (GKit kit : kitManager.getAllKits()) {
             if (displayName.contains(kit.getDisplayName())) {
-                handleKitSelection(player, kit);
+                if (event.getClick() == ClickType.RIGHT || event.getClick() == ClickType.SHIFT_RIGHT) {
+                    openKitPreview(player, kit);
+                } else if (event.getClick() == ClickType.LEFT || event.getClick() == ClickType.SHIFT_LEFT) {
+                    handleKitSelection(player, kit);
+                }
                 break;
             }
         }
+    }
+
+    private void openKitPreview(Player player, GKit kit) {
+        Inventory preview = Bukkit.createInventory(null, 27, "§9§lGKit Preview: §f" + kit.getName());
+
+        for (int option = 0; option < 3; option++) {
+            List<ItemStack> set = gemManager.createPreviewSet(kit);
+            int baseRow = option * 9;
+
+            ItemStack label = new ItemStack(Material.PAPER);
+            ItemMeta labelMeta = label.getItemMeta();
+            if (labelMeta != null) {
+                labelMeta.setDisplayName("§eOption #" + (option + 1));
+                label.setItemMeta(labelMeta);
+            }
+            preview.setItem(baseRow, label);
+
+            for (int index = 0; index < Math.min(4, set.size()); index++) {
+                preview.setItem(baseRow + 1 + index, set.get(index));
+            }
+        }
+
+        ItemStack close = new ItemStack(Material.ARROW);
+        ItemMeta closeMeta = close.getItemMeta();
+        if (closeMeta != null) {
+            closeMeta.setDisplayName("§cClose Preview");
+            close.setItemMeta(closeMeta);
+        }
+        preview.setItem(26, close);
+
+        player.openInventory(preview);
     }
     
     /**
@@ -67,8 +119,8 @@ public class GKitGuiListener implements Listener {
             return;
         }
         
-        // Unlock/claim the kit
+        // Claim the kit (give items)
         player.closeInventory();
-        gemManager.unlockKit(player, kit.getName());
+        gemManager.giveKitItems(player, kit);
     }
 }

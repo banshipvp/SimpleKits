@@ -4,6 +4,7 @@ import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
@@ -112,6 +113,7 @@ public class GKitGemManager {
 
     /**
      * Unlock a kit for a player (called when they use a gem or /gkit command)
+     * NOTE: This only unlocks the kit, does NOT give items automatically
      */
     public boolean unlockKit(Player player, String kitName) {
         GKit kit = kitManager.getKit(kitName);
@@ -129,18 +131,23 @@ public class GKitGemManager {
 
             player.sendMessage("§a§l✓ Kit Unlocked!");
             player.sendMessage("§7You have unlocked the §6" + kit.getDisplayName() + " §7kit!");
-            player.sendMessage("§7Use §e/gkit " + kitName + " §7to claim it anytime.");
+            player.sendMessage("§7Use §e/gkits §7to open it or §e/gkit " + kitName + " §7to claim it.");
             player.sendMessage("§7");
+            return true;
+        } else {
+            player.sendMessage("§cYou have already unlocked this kit.");
+            player.sendMessage("§7Use §e/gkits §7to claim it or §e/gkit " + kitName + " §7to receive the items.");
+            return false;
         }
-
-        return giveKitItems(player, kit);
     }
 
     /**
      * Give kit items to a player and set cooldown
+     * This is called when player claims from GUI or uses /gkit command
      */
-    private boolean giveKitItems(Player player, GKit kit) {
+    public boolean giveKitItems(Player player, GKit kit) {
         List<ItemStack> randomSet = createRandomDiamondSet(kit);
+        maybeAddRaiderExplosives(kit, randomSet);
 
         int requiredSlots = randomSet.size();
         int emptySlots = 0;
@@ -168,13 +175,151 @@ public class GKitGemManager {
         return true;
     }
 
+    private void maybeAddRaiderExplosives(GKit kit, List<ItemStack> items) {
+        if (kit == null || !"raider".equalsIgnoreCase(kit.getName())) {
+            return;
+        }
+
+        String[] variants = {"LETHAL", "GIGANTIC", "LUCKY"};
+        String chosen = variants[random.nextInt(variants.length)];
+
+        // Chance to add one stack (64) of custom TNT variant
+        if (random.nextDouble() <= 0.60) {
+            items.add(createCustomTntStack(chosen, 64));
+        }
+
+        // Always add 8 custom creeper eggs of one random variant
+        items.add(createCustomCreeperEggs(chosen, 8));
+    }
+
+    private ItemStack createCustomTntStack(String variant, int amount) {
+        String color = switch (variant) {
+            case "LETHAL" -> "§c";
+            case "GIGANTIC" -> "§6";
+            case "LUCKY" -> "§e";
+            default -> "§f";
+        };
+
+        String symbol = switch (variant) {
+            case "LETHAL" -> "⚡";
+            case "GIGANTIC" -> "✦";
+            case "LUCKY" -> "♻";
+            default -> "•";
+        };
+
+        ItemStack item = new ItemStack(Material.TNT, Math.max(1, amount));
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(color + symbol + " " + variant + " TNT");
+            meta.setLore(List.of(
+                    "§7Custom raiding explosive",
+                    "§7Use with cannons/dispensers",
+                    "§8Recognized by SimpleFactionsRaiding"
+            ));
+            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
+    private ItemStack createCustomCreeperEggs(String variant, int amount) {
+        String color = switch (variant) {
+            case "LETHAL" -> "§c";
+            case "GIGANTIC" -> "§6";
+            case "LUCKY" -> "§e";
+            default -> "§f";
+        };
+
+        String symbol = switch (variant) {
+            case "LETHAL" -> "⚡";
+            case "GIGANTIC" -> "✦";
+            case "LUCKY" -> "♻";
+            default -> "•";
+        };
+
+        ItemStack item = new ItemStack(Material.CREEPER_SPAWN_EGG, Math.max(1, amount));
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(color + symbol + " " + variant + " CREEPER EGG");
+            meta.setLore(List.of(
+                    "§7Spawns a custom raiding creeper",
+                    "§7Right-click to deploy",
+                    "§8Recognized by SimpleFactionsRaiding"
+            ));
+            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
+    public List<ItemStack> createPreviewSet(GKit kit) {
+        return createRandomDiamondSet(kit);
+    }
+
     private List<ItemStack> createRandomDiamondSet(GKit kit) {
         List<ItemStack> set = new ArrayList<>();
         set.add(createRandomArmorPiece(kit, Material.DIAMOND_HELMET, "Helmet"));
         set.add(createRandomArmorPiece(kit, Material.DIAMOND_CHESTPLATE, "Chestplate"));
         set.add(createRandomArmorPiece(kit, Material.DIAMOND_LEGGINGS, "Leggings"));
         set.add(createRandomArmorPiece(kit, Material.DIAMOND_BOOTS, "Boots"));
+        set.add(createSword(kit));
+        set.add(createPickaxe(kit));
         return set;
+    }
+
+    private ItemStack createSword(GKit kit) {
+        ItemStack sword = new ItemStack(Material.DIAMOND_SWORD, 1);
+        ItemMeta meta = sword.getItemMeta();
+        meta.setDisplayName(kit.getDisplayName() + " §7Sword");
+        sword.setItemMeta(meta);
+
+        sword.addUnsafeEnchantment(Enchantment.DAMAGE_ALL, 4 + random.nextInt(2));
+        sword.addUnsafeEnchantment(Enchantment.DURABILITY, 2 + random.nextInt(2));
+
+        String kitName = kit.getName().toLowerCase(Locale.ROOT);
+        switch (kitName) {
+            case "fire" -> {
+                sword.addUnsafeEnchantment(Enchantment.FIRE_ASPECT, 1 + random.nextInt(2));
+                sword.addUnsafeEnchantment(Enchantment.SWEEPING_EDGE, 2 + random.nextInt(2));
+            }
+            case "vampire", "royalty" -> {
+                sword.addUnsafeEnchantment(Enchantment.LOOT_BONUS_MOBS, 2 + random.nextInt(2));
+                sword.addUnsafeEnchantment(Enchantment.FIRE_ASPECT, 1 + random.nextInt(2));
+            }
+            case "tank", "thunder" -> {
+                sword.addUnsafeEnchantment(Enchantment.KNOCKBACK, 1 + random.nextInt(2));
+                sword.addUnsafeEnchantment(Enchantment.SWEEPING_EDGE, 2 + random.nextInt(2));
+            }
+            case "assassin" -> {
+                sword.addUnsafeEnchantment(Enchantment.LOOT_BONUS_MOBS, 2 + random.nextInt(2));
+                sword.addUnsafeEnchantment(Enchantment.FIRE_ASPECT, 1 + random.nextInt(2));
+            }
+            case "archer" -> {
+                sword.addUnsafeEnchantment(Enchantment.SWEEPING_EDGE, 2 + random.nextInt(2));
+            }
+            default -> {
+                sword.addUnsafeEnchantment(Enchantment.SWEEPING_EDGE, 1 + random.nextInt(2));
+            }
+        }
+        return sword;
+    }
+
+    private ItemStack createPickaxe(GKit kit) {
+        ItemStack pick = new ItemStack(Material.DIAMOND_PICKAXE, 1);
+        ItemMeta meta = pick.getItemMeta();
+        meta.setDisplayName(kit.getDisplayName() + " §7Pickaxe");
+        pick.setItemMeta(meta);
+
+        pick.addUnsafeEnchantment(Enchantment.DIG_SPEED, 4 + random.nextInt(2));
+        pick.addUnsafeEnchantment(Enchantment.DURABILITY, 2 + random.nextInt(2));
+
+        String kitName = kit.getName().toLowerCase(Locale.ROOT);
+        if (kitName.equals("miner")) {
+            pick.addUnsafeEnchantment(Enchantment.LOOT_BONUS_BLOCKS, 3);
+        } else {
+            pick.addUnsafeEnchantment(Enchantment.LOOT_BONUS_BLOCKS, 2 + random.nextInt(2));
+        }
+        return pick;
     }
 
     private ItemStack createRandomArmorPiece(GKit kit, Material material, String pieceName) {
@@ -184,13 +329,28 @@ public class GKitGemManager {
         meta.setDisplayName(kit.getDisplayName() + " §7" + pieceName);
         piece.setItemMeta(meta);
 
-        piece.addUnsafeEnchantment(Enchantment.PROTECTION_ENVIRONMENTAL, 5);
-        piece.addUnsafeEnchantment(Enchantment.DURABILITY, 3);
+        piece.addUnsafeEnchantment(Enchantment.PROTECTION_ENVIRONMENTAL, 4 + random.nextInt(2));
+        piece.addUnsafeEnchantment(Enchantment.DURABILITY, 2 + random.nextInt(2));
 
         List<Enchantment> applied = addKitSpecificBonusEnchants(piece, material, kit.getName().toLowerCase(Locale.ROOT));
 
         ItemMeta updatedMeta = piece.getItemMeta();
         List<String> lore = getKitCustomEnchantLore(kit.getName().toLowerCase(Locale.ROOT), Math.max(1, applied.size()));
+
+        // Add Overload ONLY to chestplates
+        if (material == Material.DIAMOND_CHESTPLATE) {
+            String kitName = kit.getName().toLowerCase();
+            String overloadLevel = switch (kitName) {
+                case "starter" -> "§6Overload I";
+                case "fire", "vampire", "assassin" -> "§6Overload II";
+                case "tank", "royalty" -> "§6Overload III";
+                default -> null;
+            };
+            
+            if (overloadLevel != null) {
+                lore.add(overloadLevel);
+            }
+        }
 
         if (!lore.isEmpty()) {
             updatedMeta.setLore(lore);
@@ -306,18 +466,20 @@ public class GKitGemManager {
 
     private List<String> getKitCustomEnchantLore(String kitName, int count) {
         List<String> pool = switch (kitName) {
-            case "starter" -> new ArrayList<>(List.of("Armored I", "Overload I", "Enlighted I"));
-            case "fire" -> new ArrayList<>(List.of("Armored II", "Overload II", "Valor II", "Enlighted I"));
+            case "starter" -> new ArrayList<>(List.of("Armored I", "Enlighted I"));
+            case "fire" -> new ArrayList<>(List.of("Armored II", "Valor II", "Enlighted I"));
             case "ice" -> new ArrayList<>(List.of("Armored II", "Enlighted II", "Valor II", "Tank I"));
             case "miner" -> new ArrayList<>(List.of("Armored I", "Enlighted I", "Tank I"));
-            case "vampire" -> new ArrayList<>(List.of("Armored II", "Overload II", "Angelic I"));
+            case "vampire" -> new ArrayList<>(List.of("Armored II", "Angelic I"));
             case "thunder" -> new ArrayList<>(List.of("Armored II", "Valor II", "Tank II"));
-            case "assassin" -> new ArrayList<>(List.of("Armored II", "Overload II", "Angelic II"));
-            case "tank" -> new ArrayList<>(List.of("Armored III", "Tank III", "Enlighted II", "Overload II"));
+            case "assassin" -> new ArrayList<>(List.of("Armored II", "Angelic II"));
+            case "tank" -> new ArrayList<>(List.of("Armored III", "Tank III", "Enlighted II"));
             case "archer" -> new ArrayList<>(List.of("Armored II", "Valor II", "Enlighted II"));
-            case "royalty" -> new ArrayList<>(List.of("Armored III", "Overload III", "Tank III", "Enlighted III", "Angelic II"));
-            default -> new ArrayList<>(List.of("Armored I", "Overload I", "Enlighted I"));
+            case "royalty" -> new ArrayList<>(List.of("Armored III", "Tank III", "Enlighted III", "Angelic II"));
+            default -> new ArrayList<>(List.of("Armored I", "Enlighted I"));
         };
+        
+        // Note: Overload is ONLY applied to chestplates in createRandomArmorPiece
 
         Collections.shuffle(pool, random);
         int lines = Math.min(Math.max(1, count), pool.size());
@@ -332,11 +494,10 @@ public class GKitGemManager {
     private String colorByEnchantTier(String enchantLine) {
         String enchantName = enchantLine.split(" ")[0].toLowerCase(Locale.ROOT);
         return switch (enchantName) {
-            case "overload" -> "§6"; // legendary (orange)
-            case "tank" -> "§d"; // ultimate+
-            case "angelic" -> "§5"; // ultimate
-            case "armored", "valor" -> "§b"; // elite
-            case "enlighted" -> "§a"; // unique
+            case "overload", "armored", "enlighted" -> "§6"; // legendary (orange)
+            case "tank" -> "§e"; // ultimate (yellow)
+            case "angelic" -> "§d"; // heroic (purple)
+            case "valor" -> "§e"; // ultimate (yellow)
             default -> "§f";
         };
     }

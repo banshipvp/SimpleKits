@@ -51,3 +51,8 @@ gkits:
   royalty:
     display-name: "Royalty"
     description: "Premium endgame kit"
+
+# Optional diagnostics for reroll/black scroll drag-and-drop handling
+debug-scrolls:
+  enabled: false
+  permission: "simplekits.scrolldebug"

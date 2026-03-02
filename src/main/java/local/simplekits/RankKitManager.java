@@ -34,6 +34,8 @@ public class RankKitManager {
         starter.addItem(new ItemStack(Material.OBSIDIAN, 32));
         starter.addItem(new ItemStack(Material.TNT, 32));
         starter.addItem(new ItemStack(Material.COOKED_BEEF, 32));
+        starter.addItem(createXPBottleItem(1000));
+        starter.addItem(createBankNoteItem(5000));
         kits.put(starter.getName(), starter);
 
         RankKit scout = new RankKit("scout", "§a§lScout Kit", "§7Starter rank kit", RankTier.SCOUT, 24);
@@ -46,6 +48,8 @@ public class RankKitManager {
         scout.addItem(new ItemStack(Material.BOW));
         scout.addItem(new ItemStack(Material.ARROW, 64));
         scout.addItem(new ItemStack(Material.COOKED_BEEF, 32));
+        scout.addItem(createXPBottleItem(5000));
+        scout.addItem(createBankNoteItem(25000));
         kits.put(scout.getName(), scout);
 
         RankKit militant = new RankKit("militant", "§e§lMilitant Kit", "§7Mid-tier PvP kit", RankTier.MILITANT, 24);
@@ -58,6 +62,8 @@ public class RankKitManager {
         militant.addItem(createEnchantedItem(Material.BOW, 1, "§eMilitant Bow", Enchantment.ARROW_DAMAGE, 3, Enchantment.DURABILITY, 3));
         militant.addItem(new ItemStack(Material.ARROW, 64));
         militant.addItem(new ItemStack(Material.GOLDEN_APPLE, 8));
+        militant.addItem(createXPBottleItem(10000));
+        militant.addItem(createBankNoteItem(50000));
         kits.put(militant.getName(), militant);
 
         RankKit tactician = new RankKit("tactician", "§6§lTactician Kit", "§7Advanced combat kit", RankTier.TACTICIAN, 24);
@@ -70,6 +76,8 @@ public class RankKitManager {
         tactician.addItem(createEnchantedItem(Material.BOW, 1, "§6Tactician Bow", Enchantment.ARROW_DAMAGE, 4, Enchantment.DURABILITY, 3));
         tactician.addItem(new ItemStack(Material.ARROW, 64));
         tactician.addItem(new ItemStack(Material.GOLDEN_APPLE, 12));
+        tactician.addItem(createXPBottleItem(15000));
+        tactician.addItem(createBankNoteItem(100000));
         kits.put(tactician.getName(), tactician);
 
         RankKit warlord = new RankKit("warlord", "§5§lWarlord Kit", "§7High-tier rank kit", RankTier.WARLORD, 24);
@@ -82,20 +90,56 @@ public class RankKitManager {
         warlord.addItem(createEnchantedItem(Material.BOW, 1, "§5Warlord Bow", Enchantment.ARROW_DAMAGE, 5, Enchantment.DURABILITY, 3));
         warlord.addItem(new ItemStack(Material.ARROW, 64));
         warlord.addItem(new ItemStack(Material.ENCHANTED_GOLDEN_APPLE, 2));
+        warlord.addItem(createXPBottleItem(20000));
+        warlord.addItem(createBankNoteItem(175000));
         kits.put(warlord.getName(), warlord);
 
         RankKit sovereign = new RankKit("sovereign", "§c§lSovereign Kit", "§7Top rank kit", RankTier.SOVEREIGN, 24);
         sovereign.addItem(createEnchantedItem(Material.NETHERITE_SWORD, 1, "§cSovereign Blade", Enchantment.DAMAGE_ALL, 6, Enchantment.DURABILITY, 4));
-        sovereign.addItem(createEnchantedItem(Material.NETHERITE_HELMET, 1, "§cSovereign Helmet", Enchantment.PROTECTION_ENVIRONMENTAL, 6, Enchantment.DURABILITY, 4));
-        sovereign.addItem(createEnchantedItem(Material.NETHERITE_CHESTPLATE, 1, "§cSovereign Chestplate", Enchantment.PROTECTION_ENVIRONMENTAL, 6, Enchantment.DURABILITY, 4));
-        sovereign.addItem(createEnchantedItem(Material.NETHERITE_LEGGINGS, 1, "§cSovereign Leggings", Enchantment.PROTECTION_ENVIRONMENTAL, 6, Enchantment.DURABILITY, 4));
-        sovereign.addItem(createEnchantedItem(Material.NETHERITE_BOOTS, 1, "§cSovereign Boots", Enchantment.PROTECTION_ENVIRONMENTAL, 6, Enchantment.DURABILITY, 4));
+        sovereign.addItem(createEnchantedItem(Material.NETHERITE_HELMET, 1, "§cSovereign Helmet", Enchantment.PROTECTION_ENVIRONMENTAL, 5, Enchantment.DURABILITY, 4));
+        sovereign.addItem(createEnchantedItem(Material.NETHERITE_CHESTPLATE, 1, "§cSovereign Chestplate", Enchantment.PROTECTION_ENVIRONMENTAL, 5, Enchantment.DURABILITY, 4));
+        sovereign.addItem(createEnchantedItem(Material.NETHERITE_LEGGINGS, 1, "§cSovereign Leggings", Enchantment.PROTECTION_ENVIRONMENTAL, 5, Enchantment.DURABILITY, 4));
+        sovereign.addItem(createEnchantedItem(Material.NETHERITE_BOOTS, 1, "§cSovereign Boots", Enchantment.PROTECTION_ENVIRONMENTAL, 5, Enchantment.DURABILITY, 4));
         sovereign.addItem(createCrateItem("godly", "§d§lGodly Crate"));
         sovereign.addItem(createEnchantedItem(Material.BOW, 1, "§cSovereign Bow", Enchantment.ARROW_DAMAGE, 6, Enchantment.DURABILITY, 4));
         sovereign.addItem(new ItemStack(Material.ARROW, 64));
         sovereign.addItem(new ItemStack(Material.ENCHANTED_GOLDEN_APPLE, 4));
         sovereign.addItem(new ItemStack(Material.TOTEM_OF_UNDYING, 1));
+        sovereign.addItem(createXPBottleItem(25000));
+        sovereign.addItem(createBankNoteItem(250000));
         kits.put(sovereign.getName(), sovereign);
+    }
+
+    private ItemStack createXPBottleItem(int xpAmount) {
+        ItemStack bottle = new ItemStack(Material.EXPERIENCE_BOTTLE, 1);
+        ItemMeta meta = bottle.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName("§b§lXP Bottle - " + xpAmount + " XP");
+            List<String> lore = new ArrayList<>();
+            lore.add("§7Right-click to consume");
+            lore.add("§7Restores §b" + xpAmount + "§7 experience");
+            meta.setLore(lore);
+            meta.getPersistentDataContainer().set(new NamespacedKey("simpleeconomy", "xp_amount"), PersistentDataType.INTEGER, xpAmount);
+            bottle.setItemMeta(meta);
+        }
+        return bottle;
+    }
+
+    private ItemStack createBankNoteItem(double amount) {
+        ItemStack note = new ItemStack(Material.PAPER, 1);
+        ItemMeta meta = note.getItemMeta();
+        if (meta != null) {
+            String formatted = String.format(Locale.US, "%,.0f", amount);
+            meta.setDisplayName("§a§lBank Note §7(§f$" + formatted + "§7)");
+            List<String> lore = new ArrayList<>();
+            lore.add("§7Right-click to redeem");
+            lore.add("§7Value: §a$" + formatted);
+            lore.add("§6Tradeable money item");
+            meta.setLore(lore);
+            meta.getPersistentDataContainer().set(new NamespacedKey("simpleeconomy", "banknote_amount"), PersistentDataType.DOUBLE, amount);
+            note.setItemMeta(meta);
+        }
+        return note;
     }
 
     private ItemStack createNamedItem(Material material, int amount, String name) {

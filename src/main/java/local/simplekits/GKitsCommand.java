@@ -91,12 +91,14 @@ public class GKitsCommand implements CommandExecutor {
             lore.add("§cKit Locked");
             lore.add("§7Use a matching §bGKit Gem §7to unlock.");
         } else if (canClaim) {
-            lore.add("§aClick to claim kit");
+            lore.add("§aLeft-click to claim kit");
+            lore.add("§bRight-click to preview options");
             lore.add("§aCooldown: §a1 day§a");
         } else {
             int remainingHours = kitManager.getRemainingCooldownHours(player.getUniqueId(), kit.getName());
             lore.add("§cNext available in:");
             lore.add("§c" + remainingHours + " hours");
+            lore.add("§bRight-click to preview options");
         }
         
         lore.add("§7");

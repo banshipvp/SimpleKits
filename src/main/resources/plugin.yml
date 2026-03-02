@@ -1,5 +1,5 @@
 name: SimpleKits
-version: 1.0
+version: '1.0'
 api-version: '1.13'
 main: local.simplekits.SimpleKitsPlugin
 description: GKits, gkit gems, and mystery spawners
@@ -20,6 +20,16 @@ commands:
   gkitlock:
     description: Lock gkits for players
     usage: /gkitlock <all|player <name>>
+  mysterymobspawner:
+    description: Get a mystery mob spawner
+    usage: "/mysterymobspawner [open]"
+    aliases: [mms]
   spawner:
-    description: Get a mystery spawner
-    usage: /spawner [open]
+    description: Give spawner to player
+    usage: "/spawner give <player> <mob>"
+  spawnerinfo:
+    description: Get information about a stacked spawner
+    usage: /spawnerinfo
+  spawnerhelp:
+    description: Show spawner stacking help
+    usage: /spawnerhelp

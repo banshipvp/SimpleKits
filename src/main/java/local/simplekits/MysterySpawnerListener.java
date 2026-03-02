@@ -7,6 +7,7 @@ import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
@@ -15,17 +16,34 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 /**
  * Listener for right-clicking mystery spawners
+ * Also handles spawner stacking when placed on top of each other
  */
 public class MysterySpawnerListener implements Listener {
 
     private final MysterySpawnerManager manager;
+    private final StackedSpawnerManager stackedSpawnerManager;
 
-    public MysterySpawnerListener(MysterySpawnerManager manager) {
+    public MysterySpawnerListener(MysterySpawnerManager manager, StackedSpawnerManager stackedSpawnerManager) {
         this.manager = manager;
+        this.stackedSpawnerManager = stackedSpawnerManager;
     }
 
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
+        // Left-click spawner info shortcut
+        if (event.getAction() == Action.LEFT_CLICK_BLOCK
+                && event.getClickedBlock() != null
+            && event.getClickedBlock().getType() == Material.SPAWNER) {
+
+            CreatureSpawner spawner = (CreatureSpawner) event.getClickedBlock().getState();
+            int stackCount = stackedSpawnerManager.getSpawnerStackCount(event.getClickedBlock());
+            double multiplier = stackedSpawnerManager.getSpawnRateMultiplier(stackCount);
+
+            event.getPlayer().sendMessage("§6Spawner Stack: §f" + spawner.getSpawnedType().name() + " §7x§f" + stackCount + "§7/" + stackedSpawnerManager.getMaxStacks());
+            event.getPlayer().sendMessage("§7Spawn multiplier: §f" + String.format("%.2fx", multiplier));
+            return;
+        }
+
         ItemStack item = event.getItem();
         
         // Must have item in hand
@@ -35,9 +53,8 @@ public class MysterySpawnerListener implements Listener {
         if (!isMysterySpawner(item)) return;
         
         // Must be right-click (air or block)
-        org.bukkit.event.block.Action action = event.getAction();
-        if (action != org.bukkit.event.block.Action.RIGHT_CLICK_AIR && 
-            action != org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) {
+        Action action = event.getAction();
+        if (action != Action.RIGHT_CLICK_AIR && action != Action.RIGHT_CLICK_BLOCK) {
             return;
         }
         
@@ -81,7 +98,9 @@ public class MysterySpawnerListener implements Listener {
         if (event.getBlockPlaced().getType() != Material.SPAWNER) return;
         
         Block placedBlock = event.getBlockPlaced();
+        Block againstBlock = event.getBlockAgainst();
         ItemStack heldItem = event.getItemInHand();
+        Player player = event.getPlayer();
         
         // Check if it's our custom spawner
         if (!heldItem.hasItemMeta()) return;
@@ -109,18 +128,50 @@ public class MysterySpawnerListener implements Listener {
         // If we found a mob type, set it on the placed block
         if (mobType != null && mobType != EntityType.UNKNOWN) {
             try {
+                // Stack against any side if clicking an existing spawner, unless sneaking
+                if (!player.isSneaking() && againstBlock != null && againstBlock.getState() instanceof CreatureSpawner) {
+                    CreatureSpawner againstSpawner = (CreatureSpawner) againstBlock.getState();
+                    EntityType againstMobType = againstSpawner.getSpawnedType();
+                    
+                    // Check if both spawners are the same type
+                    if (againstMobType == mobType) {
+                        // Try to add to stack
+                        if (stackedSpawnerManager.addSpawnerToStack(againstBlock)) {
+                            int newStackCount = stackedSpawnerManager.getSpawnerStackCount(againstBlock);
+                            
+                            // Apply updated spawner settings using fresh block state
+                            CreatureSpawner refreshedSpawner = (CreatureSpawner) againstBlock.getState();
+                            stackedSpawnerManager.applySpawnerSettings(refreshedSpawner, newStackCount);
+                            
+                            // Cancel the block place and notify player
+                            event.setCancelled(true);
+                            // Consume the stacked spawner from player's hand
+                            if (heldItem.getAmount() > 1) {
+                                heldItem.setAmount(heldItem.getAmount() - 1);
+                            } else {
+                                player.getInventory().setItemInMainHand(null);
+                            }
+                            player.sendMessage("§a✓ Stacked spawner! " + mobType.name() + " x" + newStackCount + " (Max: 10)");
+                            return;
+                        } else {
+                            // Stack is full
+                            event.setCancelled(true);
+                            player.sendMessage("§c✗ This spawner stack is at maximum capacity (10)!");
+                            return;
+                        }
+                    }
+                }
+                
+                // No spawner below or different type, place as normal
                 if (placedBlock.getState() instanceof CreatureSpawner) {
                     CreatureSpawner placedSpawner = (CreatureSpawner) placedBlock.getState();
                     placedSpawner.setSpawnedType(mobType);
-                    placedSpawner.setDelay(200);
-                    placedSpawner.setMaxNearbyEntities(16);
-                    placedSpawner.setMaxSpawnDelay(800);
-                    placedSpawner.setMinSpawnDelay(200);
-                    placedSpawner.setRequiredPlayerRange(16);
-                    placedSpawner.setSpawnRange(4);
-                    placedSpawner.update();
                     
-                    event.getPlayer().sendMessage("§a✓ Placed " + mobType.name() + " spawner!");
+                    // Initialize with single spawner settings (4x multiplier)
+                    stackedSpawnerManager.setSpawnerStackCount(placedBlock, 1);
+                    stackedSpawnerManager.applySpawnerSettings(placedSpawner, 1);
+                    
+                    player.sendMessage("§a✓ Placed " + mobType.name() + " spawner! (Place another of the same type on top to stack)");
                 }
             } catch (Exception e) {
                 System.out.println("[SimpleKits] Error setting spawner on placed block: " + e.getMessage());
