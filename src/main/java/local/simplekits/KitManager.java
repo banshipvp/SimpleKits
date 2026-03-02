@@ -158,10 +158,28 @@ public class KitManager {
         royalty.addItem(new ItemStack(Material.ENCHANTED_GOLDEN_APPLE, 16));
         royalty.addItem(new ItemStack(Material.TOTEM_OF_UNDYING, 1));
         kits.put("royalty", royalty);
+        
+        // gkit 11: Raider Kit - Cannon and base materials
+        GKit raider = new GKit("raider", "§c§lRaider", "§7Ultimate raiding and cannon kit", 24);
+        raider.addItem(createCustomEnchantedPickaxe("§cRaider's Pickaxe", Material.NETHERITE_PICKAXE));
+        raider.addItem(createEnchantedSword("§cRaider's Blade", Material.NETHERITE_SWORD));
+        raider.addItem(createEnchantedArmor("§cRaider Helmet", Material.NETHERITE_HELMET));
+        raider.addItem(createEnchantedArmor("§cRaider Chestplate", Material.NETHERITE_CHESTPLATE));
+        raider.addItem(createEnchantedArmor("§cRaider Leggings", Material.NETHERITE_LEGGINGS));
+        raider.addItem(createEnchantedArmor("§cRaider Boots", Material.NETHERITE_BOOTS));
+        raider.addItem(new ItemStack(Material.TNT, 64));
+        raider.addItem(new ItemStack(Material.TNT, 64));
+        raider.addItem(new ItemStack(Material.SAND, 64));
+        raider.addItem(new ItemStack(Material.SAND, 64));
+        raider.addItem(new ItemStack(Material.OBSIDIAN, 64));
+        raider.addItem(new ItemStack(Material.WATER_BUCKET, 1));
+        raider.addItem(new ItemStack(Material.REDSTONE, 64));
+        raider.addItem(new ItemStack(Material.GOLDEN_APPLE, 16));
+        kits.put("raider", raider);
     }
     
     /**
-     * Helper to create enchanted sword with Sharpness 6 + Unbreaking 3
+     * Helper to create enchanted sword with Sharpness 6 + Unbreaking 3 + 6-9 random custom enchants
      */
     private ItemStack createEnchantedSword(String name, Material material) {
         ItemStack sword = new ItemStack(material);
@@ -173,11 +191,30 @@ public class KitManager {
         sword.addUnsafeEnchantment(Enchantment.DAMAGE_ALL, 6);
         sword.addUnsafeEnchantment(Enchantment.DURABILITY, 3);
         
+        // Apply 6-9 random custom enchants if FactionEnchants plugin is available
+        try {
+            var factionEnchantsPlugin = plugin.getServer().getPluginManager().getPlugin("FactionEnchants");
+            if (factionEnchantsPlugin != null) {
+                plugin.getLogger().info("Found FactionEnchants plugin, applying custom enchants to sword");
+                var getRandomGearManagerMethod = factionEnchantsPlugin.getClass().getMethod("getRandomGearManager");
+                var randomGearManager = getRandomGearManagerMethod.invoke(factionEnchantsPlugin);
+                
+                var generateMethod = randomGearManager.getClass().getMethod("generateRandomEnchantedGear", ItemStack.class, int.class, int.class);
+                sword = (ItemStack) generateMethod.invoke(randomGearManager, sword, 6, 9);
+                plugin.getLogger().info("Successfully applied custom enchants to sword");
+            } else {
+                plugin.getLogger().warning("FactionEnchants plugin not found! Custom enchants will not be applied.");
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("Could not apply random custom enchants to sword: " + e.getMessage());
+            e.printStackTrace();
+        }
+        
         return sword;
     }
     
     /**
-     * Helper to create enchanted pickaxe with Efficiency 5, Fortune 3, Unbreaking 3
+     * Helper to create enchanted pickaxe with Efficiency 5, Fortune 3, Unbreaking 3 + 4-6 random custom enchants
      */
     private ItemStack createEnchantedPickaxe(String name, Material material) {
         ItemStack pick = new ItemStack(material);
@@ -194,11 +231,76 @@ public class KitManager {
         pick.addUnsafeEnchantment(Enchantment.LOOT_BONUS_BLOCKS, 3);
         pick.addUnsafeEnchantment(Enchantment.DURABILITY, 3);
         
+        // Apply 4-6 random custom enchants if FactionEnchants plugin is available
+        try {
+            var factionEnchantsPlugin = plugin.getServer().getPluginManager().getPlugin("FactionEnchants");
+            if (factionEnchantsPlugin != null) {
+                var getRandomGearManagerMethod = factionEnchantsPlugin.getClass().getMethod("getRandomGearManager");
+                var randomGearManager = getRandomGearManagerMethod.invoke(factionEnchantsPlugin);
+                
+                var generateMethod = randomGearManager.getClass().getMethod("generateRandomEnchantedGear", ItemStack.class, int.class, int.class);
+                pick = (ItemStack) generateMethod.invoke(randomGearManager, pick, 4, 6);
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("Could not apply random custom enchants to pickaxe: " + e.getMessage());
+        }
+        
         return pick;
     }
     
     /**
-     * Helper to create enchanted bow with Power 5 + Unbreaking 3
+     * Helper to create pickaxe with custom faction enchants properly applied
+     */
+    private ItemStack createCustomEnchantedPickaxe(String name, Material material) {
+        ItemStack pick = new ItemStack(material);
+        ItemMeta meta = pick.getItemMeta();
+        meta.setDisplayName(name);
+        pick.setItemMeta(meta);
+        
+        // Add vanilla enchantments
+        pick.addUnsafeEnchantment(Enchantment.DIG_SPEED, 5);
+        pick.addUnsafeEnchantment(Enchantment.LOOT_BONUS_BLOCKS, 4);
+        pick.addUnsafeEnchantment(Enchantment.DURABILITY, 3);
+        
+        // Apply custom enchants if faction-enchants-plugin is available
+        try {
+            var factionEnchantsPlugin = plugin.getServer().getPluginManager().getPlugin("faction-enchants-plugin");
+            if (factionEnchantsPlugin != null) {
+                // Use reflection to avoid hard dependency
+                var getEnchantManagerMethod = factionEnchantsPlugin.getClass().getMethod("getEnchantmentManager");
+                var enchantManager = getEnchantManagerMethod.invoke(factionEnchantsPlugin);
+                
+                // Get enchantment methods via reflection
+                var getEnchantmentMethod = enchantManager.getClass().getMethod("getEnchantment", String.class);
+                var applyEnchantmentMethod = enchantManager.getClass().getMethod("applyEnchantment", ItemStack.class, Object.class, int.class);
+                
+                // Apply AutoSmelt III
+                var autoSmelt = getEnchantmentMethod.invoke(enchantManager, "autosmelt");
+                if (autoSmelt != null) {
+                    pick = (ItemStack) applyEnchantmentMethod.invoke(enchantManager, pick, autoSmelt, 3);
+                }
+                
+                // Apply Detonate III
+                var detonate = getEnchantmentMethod.invoke(enchantManager, "detonate");
+                if (detonate != null) {
+                    pick = (ItemStack) applyEnchantmentMethod.invoke(enchantManager, pick, detonate, 3);
+                }
+                
+                // Apply Telepathy III
+                var telepathy = getEnchantmentMethod.invoke(enchantManager, "telepathy");
+                if (telepathy != null) {
+                    pick = (ItemStack) applyEnchantmentMethod.invoke(enchantManager, pick, telepathy, 3);
+                }
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("Could not apply custom enchants to raider pickaxe: " + e.getMessage());
+        }
+        
+        return pick;
+    }
+    
+    /**
+     * Helper to create enchanted bow with Power 5 + Unbreaking 3 + 6-9 random custom enchants
      */
     private ItemStack createEnchantedBow(String name, Material material) {
         ItemStack bow = new ItemStack(material);
@@ -210,11 +312,25 @@ public class KitManager {
         bow.addUnsafeEnchantment(Enchantment.DURABILITY, 3);
         bow.addUnsafeEnchantment(Enchantment.ARROW_INFINITE, 1);
         
+        // Apply 6-9 random custom enchants if FactionEnchants plugin is available
+        try {
+            var factionEnchantsPlugin = plugin.getServer().getPluginManager().getPlugin("FactionEnchants");
+            if (factionEnchantsPlugin != null) {
+                var getRandomGearManagerMethod = factionEnchantsPlugin.getClass().getMethod("getRandomGearManager");
+                var randomGearManager = getRandomGearManagerMethod.invoke(factionEnchantsPlugin);
+                
+                var generateMethod = randomGearManager.getClass().getMethod("generateRandomEnchantedGear", ItemStack.class, int.class, int.class);
+                bow = (ItemStack) generateMethod.invoke(randomGearManager, bow, 6, 9);
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("Could not apply random custom enchants to bow: " + e.getMessage());
+        }
+        
         return bow;
     }
     
     /**
-     * Helper to create enchanted armor with Protection 5 + Unbreaking 3
+     * Helper to create enchanted armor with Protection 5 + Unbreaking 3 + 6-9 random custom enchants
      */
     private ItemStack createEnchantedArmor(String name, Material material) {
         ItemStack armor = new ItemStack(material);
@@ -225,6 +341,22 @@ public class KitManager {
         // Add vanilla enchantments with higher levels
         armor.addUnsafeEnchantment(Enchantment.PROTECTION_ENVIRONMENTAL, 5);
         armor.addUnsafeEnchantment(Enchantment.DURABILITY, 3);
+        
+        // Apply 6-9 random custom enchants if FactionEnchants plugin is available
+        try {
+            var factionEnchantsPlugin = plugin.getServer().getPluginManager().getPlugin("FactionEnchants");
+            if (factionEnchantsPlugin != null) {
+                // Use reflection to access RandomGearManager
+                var getRandomGearManagerMethod = factionEnchantsPlugin.getClass().getMethod("getRandomGearManager");
+                var randomGearManager = getRandomGearManagerMethod.invoke(factionEnchantsPlugin);
+                
+                // Call generateRandomEnchantedGear(ItemStack baseItem, int minEnchants, int maxEnchants)
+                var generateMethod = randomGearManager.getClass().getMethod("generateRandomEnchantedGear", ItemStack.class, int.class, int.class);
+                armor = (ItemStack) generateMethod.invoke(randomGearManager, armor, 6, 9);
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("Could not apply random custom enchants to armor: " + e.getMessage());
+        }
         
         return armor;
     }
@@ -237,6 +369,20 @@ public class KitManager {
 
         armor.addUnsafeEnchantment(Enchantment.PROTECTION_ENVIRONMENTAL, 2);
         armor.addUnsafeEnchantment(Enchantment.DURABILITY, 2);
+        
+        // Apply 2-4 random custom enchants for starter kit
+        try {
+            var factionEnchantsPlugin = plugin.getServer().getPluginManager().getPlugin("FactionEnchants");
+            if (factionEnchantsPlugin != null) {
+                var getRandomGearManagerMethod = factionEnchantsPlugin.getClass().getMethod("getRandomGearManager");
+                var randomGearManager = getRandomGearManagerMethod.invoke(factionEnchantsPlugin);
+                
+                var generateMethod = randomGearManager.getClass().getMethod("generateRandomEnchantedGear", ItemStack.class, int.class, int.class);
+                armor = (ItemStack) generateMethod.invoke(randomGearManager, armor, 2, 4);
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("Could not apply random custom enchants to starter armor: " + e.getMessage());
+        }
 
         return armor;
     }
@@ -249,6 +395,20 @@ public class KitManager {
 
         sword.addUnsafeEnchantment(Enchantment.DAMAGE_ALL, 2);
         sword.addUnsafeEnchantment(Enchantment.DURABILITY, 2);
+        
+        // Apply 2-4 random custom enchants for starter kit
+        try {
+            var factionEnchantsPlugin = plugin.getServer().getPluginManager().getPlugin("FactionEnchants");
+            if (factionEnchantsPlugin != null) {
+                var getRandomGearManagerMethod = factionEnchantsPlugin.getClass().getMethod("getRandomGearManager");
+                var randomGearManager = getRandomGearManagerMethod.invoke(factionEnchantsPlugin);
+                
+                var generateMethod = randomGearManager.getClass().getMethod("generateRandomEnchantedGear", ItemStack.class, int.class, int.class);
+                sword = (ItemStack) generateMethod.invoke(randomGearManager, sword, 2, 4);
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("Could not apply random custom enchants to starter sword: " + e.getMessage());
+        }
 
         return sword;
     }

@@ -111,7 +111,7 @@ public class GKitGemManager {
     }
 
     /**
-     * Unlock a kit for a player (called when they use a gem or /gkit command)
+     * Unlock a kit for a player (called when they use a gem)
      */
     public boolean unlockKit(Player player, String kitName) {
         GKit kit = kitManager.getKit(kitName);
@@ -129,17 +129,20 @@ public class GKitGemManager {
 
             player.sendMessage("§a§l✓ Kit Unlocked!");
             player.sendMessage("§7You have unlocked the §6" + kit.getDisplayName() + " §7kit!");
-            player.sendMessage("§7Use §e/gkit " + kitName + " §7to claim it anytime.");
+            player.sendMessage("§7Use §e/gkits §7to open the GUI and claim your kit.");
             player.sendMessage("§7");
+            return true;
+        } else {
+            player.sendMessage("§eYou have already unlocked this kit.");
+            player.sendMessage("§7Use §e/gkits §7to claim it if available.");
+            return false;
         }
-
-        return giveKitItems(player, kit);
     }
 
     /**
-     * Give kit items to a player and set cooldown
+     * Give kit items to a player and set cooldown (called from GUI)
      */
-    private boolean giveKitItems(Player player, GKit kit) {
+    public boolean giveKitItems(Player player, GKit kit) {
         List<ItemStack> randomSet = createRandomDiamondSet(kit);
 
         int requiredSlots = randomSet.size();
@@ -169,12 +172,8 @@ public class GKitGemManager {
     }
 
     private List<ItemStack> createRandomDiamondSet(GKit kit) {
-        List<ItemStack> set = new ArrayList<>();
-        set.add(createRandomArmorPiece(kit, Material.DIAMOND_HELMET, "Helmet"));
-        set.add(createRandomArmorPiece(kit, Material.DIAMOND_CHESTPLATE, "Chestplate"));
-        set.add(createRandomArmorPiece(kit, Material.DIAMOND_LEGGINGS, "Leggings"));
-        set.add(createRandomArmorPiece(kit, Material.DIAMOND_BOOTS, "Boots"));
-        return set;
+        // Return actual kit items instead of generating random sets
+        return Arrays.asList(kit.getItems());
     }
 
     private ItemStack createRandomArmorPiece(GKit kit, Material material, String pieceName) {

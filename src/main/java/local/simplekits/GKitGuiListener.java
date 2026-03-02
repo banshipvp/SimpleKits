@@ -67,8 +67,8 @@ public class GKitGuiListener implements Listener {
             return;
         }
         
-        // Unlock/claim the kit
+        // Claim the kit
         player.closeInventory();
-        gemManager.unlockKit(player, kit.getName());
+        gemManager.giveKitItems(player, kit);
     }
 }
