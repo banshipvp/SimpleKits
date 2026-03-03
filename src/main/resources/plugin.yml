@@ -4,6 +4,7 @@ api-version: '1.13'
 main: local.simplekits.SimpleKitsPlugin
 description: GKits, gkit gems, and mystery spawners
 authors: [Dev]
+softdepend: [FactionEnchants]
 
 commands:
   gkits:
