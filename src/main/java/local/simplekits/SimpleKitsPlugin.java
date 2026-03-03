@@ -35,6 +35,9 @@ public class SimpleKitsPlugin extends JavaPlugin {
         getCommand("gkit").setExecutor(new GKitCommand(kitManager, gkitGemManager));
         getCommand("gkitgem").setExecutor(new GKitGemCommand(kitManager, gkitGemManager));
         getCommand("gkitlock").setExecutor(new GKitLockCommand(gkitGemManager));
+        GKitUnlockCommand gkitUnlockCommand = new GKitUnlockCommand(kitManager, gkitGemManager);
+        getCommand("gkitunlock").setExecutor(gkitUnlockCommand);
+        getCommand("gkitunlock").setTabCompleter(gkitUnlockCommand);
         getCommand("spawner").setExecutor(new SpawnerCommand(spawnerManager));
 
         // Register listeners

@@ -111,6 +111,33 @@ public class GKitGemManager {
     }
 
     /**
+     * Admin unlock — directly grants a kit without requiring a live Player reference.
+     * Use from command handlers; does NOT send any chat messages.
+     *
+     * @return true  if the kit was newly unlocked
+     *         false if it was already unlocked
+     */
+    public boolean unlockKitSilent(UUID playerId, String kitName) {
+        if (kitManager.getKit(kitName) == null) return false;
+        Set<String> playerKits = unlockedKits.computeIfAbsent(playerId, k -> new HashSet<>());
+        return playerKits.add(kitName.toLowerCase());
+    }
+
+    /**
+     * Admin unlock — grants all registered kits to a player without messages.
+     *
+     * @return number of kits newly unlocked
+     */
+    public int unlockAllKitsSilent(UUID playerId) {
+        Set<String> playerKits = unlockedKits.computeIfAbsent(playerId, k -> new HashSet<>());
+        int count = 0;
+        for (GKit kit : kitManager.getAllKits()) {
+            if (playerKits.add(kit.getName().toLowerCase())) count++;
+        }
+        return count;
+    }
+
+    /**
      * Unlock a kit for a player (called when they use a gem)
      */
     public boolean unlockKit(Player player, String kitName) {
