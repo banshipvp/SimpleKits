@@ -89,19 +89,19 @@ public class KitManager {
         
         // Kit 4: Raider - TNT, creeper eggs, explosive gear
         GKit raider = new GKit("raider", "§2§lRaider", "§7Breach enemy defenses", 24);
-        raider.addItem(createCustomWeapon("§2§lRaider's Edge", Material.DIAMOND_SWORD,
+        raider.addItem(createCustomWeapon("§2§lRaider's Edge", Material.NETHERITE_SWORD,
             new String[]{"sharpness", "unbreaking", "explosive"},
             new int[]{5, 3, 1}));
-        raider.addItem(createCustomArmorPiece("§2§lExplosive Helmet", Material.DIAMOND_HELMET,
+        raider.addItem(createCustomArmorPiece("§2§lExplosive Helmet", Material.NETHERITE_HELMET,
             new String[]{"protection", "unbreaking", "blast_protection", "ghost"},
             new int[]{4, 3, 4, 2}));
-        raider.addItem(createCustomArmorPiece("§2§lCreeper Chestplate", Material.DIAMOND_CHESTPLATE,
+        raider.addItem(createCustomArmorPiece("§2§lCreeper Chestplate", Material.NETHERITE_CHESTPLATE,
             new String[]{"protection", "unbreaking", "creeperarmor", "ghost"},
             new int[]{4, 3, 2, 2}));
-        raider.addItem(createCustomArmorPiece("§2§lRaider Leggings", Material.DIAMOND_LEGGINGS,
+        raider.addItem(createCustomArmorPiece("§2§lRaider Leggings", Material.NETHERITE_LEGGINGS,
             new String[]{"protection", "unbreaking", "ghost", "creeperarmor"},
             new int[]{4, 3, 2, 1}));
-        raider.addItem(createCustomArmorPiece("§2§lTactical Boots", Material.DIAMOND_BOOTS,
+        raider.addItem(createCustomArmorPiece("§2§lTactical Boots", Material.NETHERITE_BOOTS,
             new String[]{"protection", "unbreaking", "depth_strider", "ghost"},
             new int[]{4, 3, 3, 1}));
         raider.addItem(new ItemStack(Material.TNT, 64));
@@ -136,18 +136,12 @@ public class KitManager {
         
         // Kit 6: Miner - Mining tools with custom enchants
         GKit miner = new GKit("miner", "§6§lMiner", "§7Ultimate mining efficiency", 24);
-        miner.addItem(createCustomTool("§6§lDwarven Pickaxe", Material.DIAMOND_PICKAXE,
+        miner.addItem(createCustomTool("§6§lMaven Pickaxe", Material.DIAMOND_PICKAXE,
             new String[]{"efficiency", "fortune", "unbreaking", "autosmelt", "detonate", "telepathy", "haste"},
             new int[]{5, 3, 3, 1, 3, 1, 2}));
         miner.addItem(createCustomTool("§6§lExcavator Shovel", Material.DIAMOND_SHOVEL,
             new String[]{"efficiency", "unbreaking", "autosmelt", "telepathy", "haste"},
             new int[]{5, 3, 1, 1, 2}));
-        miner.addItem(createCustomTool("§6§lDriller", Material.DIAMOND_PICKAXE,
-            new String[]{"efficiency", "unbreaking", "obsidianbreaker"},
-            new int[]{5, 3, 2}));
-        miner.addItem(createCustomWeapon("§6§lMiner's Blade", Material.DIAMOND_SWORD,
-            new String[]{"sharpness", "unbreaking"},
-            new int[]{5, 3}));
         miner.addItem(new ItemStack(Material.TORCH, 64));
         miner.addItem(new ItemStack(Material.GOLDEN_APPLE, 8));
         kits.put("miner", miner);
@@ -192,14 +186,20 @@ public class KitManager {
         // Kit 9: Warlock - Magic/Effects based
         GKit warlock = new GKit("warlock", "§5§lWarlock", "§7Master of dark arts", 24);
         warlock.addItem(createCustomWeapon("§5§lStaff of Corruption", Material.NETHERITE_SWORD,
-            new String[]{"sharpness", "unbreaking", "corrupt", "wither", "voodoo", "hex"},
-            new int[]{6, 3, 3, 2, 2, 2}));
+            new String[]{"sharpness", "unbreaking", "reaper", "wither", "voodoo", "decapitate"},
+            new int[]{6, 3, 3, 2, 2, 3}));
         warlock.addItem(createCustomArmorPiece("§5§lSorcerer's Crown", Material.DIAMOND_HELMET,
-            new String[]{"protection", "unbreaking", "metaphysical"},
+            new String[]{"protection", "unbreaking", "overload"},
             new int[]{4, 3, 2}));
         warlock.addItem(createCustomArmorPiece("§5§lRobes of Power", Material.DIAMOND_CHESTPLATE,
             new String[]{"protection", "unbreaking", "godlyoverload"},
             new int[]{4, 3, 1}));
+        warlock.addItem(createCustomArmorPiece("§5§lShadow Leggings", Material.DIAMOND_LEGGINGS,
+            new String[]{"protection", "unbreaking", "overload"},
+            new int[]{4, 3, 1}));
+        warlock.addItem(createCustomArmorPiece("§5§lBoots of the Abyss", Material.DIAMOND_BOOTS,
+            new String[]{"protection", "unbreaking", "feather_falling", "metaphysical"},
+            new int[]{4, 3, 4, 2}));
         warlock.addItem(new ItemStack(Material.POTION, 5)); // Health potions
         warlock.addItem(new ItemStack(Material.GOLDEN_APPLE, 12));
         kits.put("warlock", warlock);
@@ -297,13 +297,22 @@ public class KitManager {
                     .getMethod("getEnchantment", String.class)
                     .invoke(enchantmentManager, enchantId);
                     
-                if (customEnchant != null && addLore) {
-                    String displayName = (String) customEnchant.getClass().getMethod("getDisplayName").invoke(customEnchant);
-                    Object tierObj = customEnchant.getClass().getMethod("getTier").invoke(customEnchant);
-                    String tierName = tierObj.toString();
-                    String color = getTierColorByName(tierName);
-                    String romanLevel = toRoman(level);
-                    lore.add(color + displayName + " " + romanLevel);
+                if (customEnchant != null) {
+                    try {
+                        // Prefer calling EnchantmentManager.applyEnchantment(item, enchant, level)
+                        java.lang.reflect.Method applyMethod = enchantmentManager.getClass().getMethod("applyEnchantment", ItemStack.class, customEnchant.getClass(), int.class);
+                        applyMethod.invoke(enchantmentManager, item, customEnchant, level);
+                    } catch (NoSuchMethodException nsme) {
+                        // Fallback: just add lore if apply method not available
+                        if (addLore) {
+                            String displayName = (String) customEnchant.getClass().getMethod("getDisplayName").invoke(customEnchant);
+                            Object tierObj = customEnchant.getClass().getMethod("getTier").invoke(customEnchant);
+                            String tierName = tierObj.toString();
+                            String color = getTierColorByName(tierName);
+                            String romanLevel = toRoman(level);
+                            lore.add(color + displayName + " " + romanLevel);
+                        }
+                    }
                 }
             }
         } catch (Exception e) {

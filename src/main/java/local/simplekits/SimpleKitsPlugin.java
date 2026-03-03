@@ -47,6 +47,7 @@ public class SimpleKitsPlugin extends JavaPlugin {
         getCommand("gkit").setExecutor(new GKitCommand(kitManager, gkitGemManager));
         getCommand("gkitgem").setExecutor(new GKitGemCommand(kitManager, gkitGemManager));
         getCommand("gkitlock").setExecutor(new GKitLockCommand(gkitGemManager));
+        getCommand("gkitunlock").setExecutor(new GKitUnlockCommand(gkitGemManager, kitManager));
         getCommand("mysterymobspawner").setExecutor(new MysterySpawnerCommand(spawnerManager));
         getCommand("spawner").setExecutor(new SpawnerCommand(spawnerManager));
         getCommand("spawnerinfo").setExecutor(new SpawnerInfoCommand(stackedSpawnerManager));

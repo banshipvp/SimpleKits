@@ -257,14 +257,25 @@ public class GKitGemManager {
     }
 
     private List<ItemStack> createRandomDiamondSet(GKit kit) {
-        List<ItemStack> set = new ArrayList<>();
-        set.add(createRandomArmorPiece(kit, Material.DIAMOND_HELMET, "Helmet"));
-        set.add(createRandomArmorPiece(kit, Material.DIAMOND_CHESTPLATE, "Chestplate"));
-        set.add(createRandomArmorPiece(kit, Material.DIAMOND_LEGGINGS, "Leggings"));
-        set.add(createRandomArmorPiece(kit, Material.DIAMOND_BOOTS, "Boots"));
-        set.add(createSword(kit));
-        set.add(createPickaxe(kit));
-        return set;
+        ItemStack[] definedItems = kit.getItems();
+        if (definedItems == null || definedItems.length == 0) {
+            List<ItemStack> fallback = new ArrayList<>();
+            fallback.add(createRandomArmorPiece(kit, Material.DIAMOND_HELMET, "Helmet"));
+            fallback.add(createRandomArmorPiece(kit, Material.DIAMOND_CHESTPLATE, "Chestplate"));
+            fallback.add(createRandomArmorPiece(kit, Material.DIAMOND_LEGGINGS, "Leggings"));
+            fallback.add(createRandomArmorPiece(kit, Material.DIAMOND_BOOTS, "Boots"));
+            fallback.add(createSword(kit));
+            fallback.add(createPickaxe(kit));
+            return fallback;
+        }
+
+        List<ItemStack> result = new ArrayList<>(definedItems.length);
+        for (ItemStack item : definedItems) {
+            if (item != null && item.getType() != Material.AIR) {
+                result.add(item.clone());
+            }
+        }
+        return result;
     }
 
     private ItemStack createSword(GKit kit) {

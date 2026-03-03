@@ -21,6 +21,9 @@ commands:
   gkitlock:
     description: Lock gkits for players
     usage: /gkitlock <all|player <name>>
+  gkitunlock:
+    description: Unlock gkits for players (admin)
+    usage: /gkitunlock <player|all> <kit|all>
   mysterymobspawner:
     description: Get a mystery mob spawner
     usage: "/mysterymobspawner [open]"
