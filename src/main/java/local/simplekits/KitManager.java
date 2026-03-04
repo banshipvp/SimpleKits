@@ -42,10 +42,10 @@ public class KitManager {
         // gkit 1: Starter Kit
         GKit starter = new GKit("starter", "§b§lStarter Kit", "§7Starter raid/build essentials", 24);
         starter.addItem(createStarterSword("§6Starter Sword", Material.IRON_SWORD));
-        starter.addItem(createStarterArmor("§6Starter Helmet", Material.IRON_HELMET));
+        starter.addItem(createStarterHelmet("§6Starter Helmet", Material.IRON_HELMET));
         starter.addItem(createStarterArmor("§6Starter Chestplate", Material.IRON_CHESTPLATE));
         starter.addItem(createStarterArmor("§6Starter Leggings", Material.IRON_LEGGINGS));
-        starter.addItem(createStarterArmor("§6Starter Boots", Material.IRON_BOOTS));
+        starter.addItem(createStarterBoots("§6Starter Boots", Material.IRON_BOOTS));
         starter.addItem(new ItemStack(Material.SHIELD));
         starter.addItem(createNamedItem("§eSimple Crate", Material.CHEST, 1));
         starter.addItem(new ItemStack(Material.OAK_LOG, 64));
@@ -58,10 +58,10 @@ public class KitManager {
         // gkit 2: Fire Guardian
         GKit fire = new GKit("fire", "§c§lFire Guardian", "§7Fire-themed combat kit", 24);
         fire.addItem(createEnchantedSword("§cIncinerate Sword", Material.DIAMOND_SWORD));
-        fire.addItem(createEnchantedArmor("§cMolten Helmet", Material.DIAMOND_HELMET));
+        fire.addItem(createEnchantedHelmet("§cMolten Helmet", Material.DIAMOND_HELMET));
         fire.addItem(createEnchantedArmor("§cMolten Chestplate", Material.DIAMOND_CHESTPLATE));
         fire.addItem(createEnchantedArmor("§cMolten Leggings", Material.DIAMOND_LEGGINGS));
-        fire.addItem(createEnchantedArmor("§cMolten Boots", Material.DIAMOND_BOOTS));
+        fire.addItem(createEnchantedBoots("§cMolten Boots", Material.DIAMOND_BOOTS));
         fire.addItem(new ItemStack(Material.SHIELD));
         fire.addItem(new ItemStack(Material.GOLDEN_APPLE, 16));
         kits.put("fire", fire);
@@ -69,10 +69,10 @@ public class KitManager {
         // gkit 3: Ice Warrior
         GKit ice = new GKit("ice", "§b§lIce Warrior", "§7Frost-focused combat kit", 24);
         ice.addItem(createEnchantedSword("§bFrozen Blade", Material.DIAMOND_SWORD));
-        ice.addItem(createEnchantedArmor("§bFrozen Helmet", Material.DIAMOND_HELMET));
+        ice.addItem(createEnchantedHelmet("§bFrozen Helmet", Material.DIAMOND_HELMET));
         ice.addItem(createEnchantedArmor("§bFrozen Chestplate", Material.DIAMOND_CHESTPLATE));
         ice.addItem(createEnchantedArmor("§bFrozen Leggings", Material.DIAMOND_LEGGINGS));
-        ice.addItem(createEnchantedArmor("§bFrozen Boots", Material.DIAMOND_BOOTS));
+        ice.addItem(createEnchantedBoots("§bFrozen Boots", Material.DIAMOND_BOOTS));
         ice.addItem(new ItemStack(Material.SHIELD));
         ice.addItem(new ItemStack(Material.GOLDEN_APPLE, 16));
         kits.put("ice", ice);
@@ -80,11 +80,11 @@ public class KitManager {
         // gkit 4: Miner's Fortune
         GKit miner = new GKit("miner", "§6§lMiner's Fortune", "§7Mining and resource gathering", 24);
         miner.addItem(createEnchantedPickaxe("§6Lucky Pickaxe", Material.DIAMOND_PICKAXE));
-        miner.addItem(createEnchantedPickaxe("§6Fortune Pick", Material.DIAMOND_PICKAXE));
-        miner.addItem(createEnchantedArmor("§6Miner Helmet", Material.DIAMOND_HELMET));
+        miner.addItem(createEnchantedShovel("§6Miner's Shovel", Material.DIAMOND_SHOVEL));
+        miner.addItem(createEnchantedHelmet("§6Miner Helmet", Material.DIAMOND_HELMET));
         miner.addItem(createEnchantedArmor("§6Miner Chestplate", Material.DIAMOND_CHESTPLATE));
         miner.addItem(createEnchantedArmor("§6Miner Leggings", Material.DIAMOND_LEGGINGS));
-        miner.addItem(createEnchantedArmor("§6Miner Boots", Material.DIAMOND_BOOTS));
+        miner.addItem(createEnchantedBoots("§6Miner Boots", Material.DIAMOND_BOOTS));
         miner.addItem(createEnchantedSword("§6Miner Sword", Material.DIAMOND_SWORD));
         miner.addItem(new ItemStack(Material.TORCH, 64));
         miner.addItem(new ItemStack(Material.GOLDEN_APPLE, 8));
@@ -93,10 +93,10 @@ public class KitManager {
         // gkit 5: Vampire's Kiss
         GKit vampire = new GKit("vampire", "§4§lVampire's Kiss", "§7Life-steal combat kit", 24);
         vampire.addItem(createEnchantedSword("§4Vampiric Blade", Material.DIAMOND_SWORD));
-        vampire.addItem(createEnchantedArmor("§4Dark Helmet", Material.DIAMOND_HELMET));
+        vampire.addItem(createEnchantedHelmet("§4Dark Helmet", Material.DIAMOND_HELMET));
         vampire.addItem(createEnchantedArmor("§4Dark Chestplate", Material.DIAMOND_CHESTPLATE));
         vampire.addItem(createEnchantedArmor("§4Dark Leggings", Material.DIAMOND_LEGGINGS));
-        vampire.addItem(createEnchantedArmor("§4Dark Boots", Material.DIAMOND_BOOTS));
+        vampire.addItem(createEnchantedBoots("§4Dark Boots", Material.DIAMOND_BOOTS));
         vampire.addItem(new ItemStack(Material.SHIELD));
         vampire.addItem(new ItemStack(Material.GOLDEN_APPLE, 16));
         kits.put("vampire", vampire);
@@ -104,10 +104,10 @@ public class KitManager {
         // gkit 6: Thunder Lord
         GKit thunder = new GKit("thunder", "§e§lThunder Lord", "§7Lightning-based combat", 24);
         thunder.addItem(createEnchantedSword("§eThundering Blade", Material.DIAMOND_SWORD));
-        thunder.addItem(createEnchantedArmor("§eThunder Helmet", Material.DIAMOND_HELMET));
+        thunder.addItem(createEnchantedHelmet("§eThunder Helmet", Material.DIAMOND_HELMET));
         thunder.addItem(createEnchantedArmor("§eThunder Chestplate", Material.DIAMOND_CHESTPLATE));
         thunder.addItem(createEnchantedArmor("§eThunder Leggings", Material.DIAMOND_LEGGINGS));
-        thunder.addItem(createEnchantedArmor("§eThunder Boots", Material.DIAMOND_BOOTS));
+        thunder.addItem(createEnchantedBoots("§eThunder Boots", Material.DIAMOND_BOOTS));
         thunder.addItem(createEnchantedBow("§eVoltage Bow", Material.BOW));
         thunder.addItem(new ItemStack(Material.ARROW, 64));
         thunder.addItem(new ItemStack(Material.GOLDEN_APPLE, 16));
@@ -116,10 +116,10 @@ public class KitManager {
         // gkit 7: Assassin's Edge
         GKit assassin = new GKit("assassin", "§8§lAssassin's Edge", "§7High damage and speed", 24);
         assassin.addItem(createEnchantedSword("§8Shadow Blade", Material.NETHERITE_SWORD));
-        assassin.addItem(createEnchantedArmor("§8Shadow Helmet", Material.NETHERITE_HELMET));
+        assassin.addItem(createEnchantedHelmet("§8Shadow Helmet", Material.NETHERITE_HELMET));
         assassin.addItem(createEnchantedArmor("§8Shadow Chestplate", Material.NETHERITE_CHESTPLATE));
         assassin.addItem(createEnchantedArmor("§8Shadow Leggings", Material.NETHERITE_LEGGINGS));
-        assassin.addItem(createEnchantedArmor("§8Shadow Boots", Material.NETHERITE_BOOTS));
+        assassin.addItem(createEnchantedBoots("§8Shadow Boots", Material.NETHERITE_BOOTS));
         assassin.addItem(new ItemStack(Material.SHIELD));
         assassin.addItem(new ItemStack(Material.GOLDEN_APPLE, 16));
         kits.put("assassin", assassin);
@@ -127,10 +127,10 @@ public class KitManager {
         // gkit 8: Tank's Fortress
         GKit tank = new GKit("tank", "§7§lTank's Fortress", "§7Heavy defense and endurance", 24);
         tank.addItem(createEnchantedSword("§7Fortress Sword", Material.DIAMOND_SWORD));
-        tank.addItem(createEnchantedArmor("§7Tanky Helm", Material.NETHERITE_HELMET));
+        tank.addItem(createEnchantedHelmet("§7Tanky Helm", Material.NETHERITE_HELMET));
         tank.addItem(createEnchantedArmor("§7Tanky Chestplate", Material.NETHERITE_CHESTPLATE));
         tank.addItem(createEnchantedArmor("§7Tanky Leggings", Material.NETHERITE_LEGGINGS));
-        tank.addItem(createEnchantedArmor("§7Tanky Boots", Material.NETHERITE_BOOTS));
+        tank.addItem(createEnchantedBoots("§7Tanky Boots", Material.NETHERITE_BOOTS));
         tank.addItem(new ItemStack(Material.SHIELD));
         tank.addItem(new ItemStack(Material.ENCHANTED_GOLDEN_APPLE, 8));
         kits.put("tank", tank);
@@ -138,10 +138,10 @@ public class KitManager {
         // gkit 9: Archer's Precision
         GKit archer = new GKit("archer", "§a§lArcher's Precision", "§7Bow-based combat kit", 24);
         archer.addItem(createEnchantedBow("§aSnipe Bow", Material.BOW));
-        archer.addItem(createEnchantedArmor("§aArcher Helmet", Material.DIAMOND_HELMET));
+        archer.addItem(createEnchantedHelmet("§aArcher Helmet", Material.DIAMOND_HELMET));
         archer.addItem(createEnchantedArmor("§aArcher Chestplate", Material.DIAMOND_CHESTPLATE));
         archer.addItem(createEnchantedArmor("§aArcher Leggings", Material.DIAMOND_LEGGINGS));
-        archer.addItem(createEnchantedArmor("§aArcher Boots", Material.DIAMOND_BOOTS));
+        archer.addItem(createEnchantedBoots("§aArcher Boots", Material.DIAMOND_BOOTS));
         archer.addItem(createEnchantedBow("§aExplosive Bow", Material.BOW));
         archer.addItem(new ItemStack(Material.ARROW, 128));
         archer.addItem(new ItemStack(Material.GOLDEN_APPLE, 16));
@@ -150,10 +150,10 @@ public class KitManager {
         // gkit 10: Royalty Kit
         GKit royalty = new GKit("royalty", "§d§lRoyalty", "§7Premium endgame kit", 24);
         royalty.addItem(createEnchantedSword("§dRoyal Blade", Material.NETHERITE_SWORD));
-        royalty.addItem(createEnchantedArmor("§dRoyal Helm", Material.NETHERITE_HELMET));
+        royalty.addItem(createEnchantedHelmet("§dRoyal Helm", Material.NETHERITE_HELMET));
         royalty.addItem(createEnchantedArmor("§dRoyal Chestplate", Material.NETHERITE_CHESTPLATE));
         royalty.addItem(createEnchantedArmor("§dRoyal Leggings", Material.NETHERITE_LEGGINGS));
-        royalty.addItem(createEnchantedArmor("§dRoyal Boots", Material.NETHERITE_BOOTS));
+        royalty.addItem(createEnchantedBoots("§dRoyal Boots", Material.NETHERITE_BOOTS));
         royalty.addItem(new ItemStack(Material.SHIELD));
         royalty.addItem(new ItemStack(Material.ENCHANTED_GOLDEN_APPLE, 16));
         royalty.addItem(new ItemStack(Material.TOTEM_OF_UNDYING, 1));
@@ -163,10 +163,10 @@ public class KitManager {
         GKit raider = new GKit("raider", "§c§lRaider", "§7Ultimate raiding and cannon kit", 24);
         raider.addItem(createCustomEnchantedPickaxe("§cRaider's Pickaxe", Material.NETHERITE_PICKAXE));
         raider.addItem(createEnchantedSword("§cRaider's Blade", Material.NETHERITE_SWORD));
-        raider.addItem(createEnchantedArmor("§cRaider Helmet", Material.NETHERITE_HELMET));
+        raider.addItem(createEnchantedHelmet("§cRaider Helmet", Material.NETHERITE_HELMET));
         raider.addItem(createEnchantedArmor("§cRaider Chestplate", Material.NETHERITE_CHESTPLATE));
         raider.addItem(createEnchantedArmor("§cRaider Leggings", Material.NETHERITE_LEGGINGS));
-        raider.addItem(createEnchantedArmor("§cRaider Boots", Material.NETHERITE_BOOTS));
+        raider.addItem(createEnchantedBoots("§cRaider Boots", Material.NETHERITE_BOOTS));
         raider.addItem(new ItemStack(Material.TNT, 64));
         raider.addItem(new ItemStack(Material.TNT, 64));
         raider.addItem(new ItemStack(Material.SAND, 64));
@@ -209,7 +209,10 @@ public class KitManager {
             plugin.getLogger().warning("Could not apply random custom enchants to sword: " + e.getMessage());
             e.printStackTrace();
         }
-        
+
+        // Guaranteed sword enchants
+        sword = applyGuaranteedEnchants(sword, "rage", "silence", "lifesteal");
+
         return sword;
     }
     
@@ -220,11 +223,6 @@ public class KitManager {
         ItemStack pick = new ItemStack(material);
         ItemMeta meta = pick.getItemMeta();
         meta.setDisplayName(name);
-        meta.setLore(Arrays.asList(
-            "§dAutoSmelt",
-            "§dDetonate",
-            "§dTelepathy"
-        ));
         pick.setItemMeta(meta);
         
         pick.addUnsafeEnchantment(Enchantment.DIG_SPEED, 5);
@@ -264,7 +262,7 @@ public class KitManager {
         
         // Apply custom enchants if faction-enchants-plugin is available
         try {
-            var factionEnchantsPlugin = plugin.getServer().getPluginManager().getPlugin("faction-enchants-plugin");
+            var factionEnchantsPlugin = plugin.getServer().getPluginManager().getPlugin("FactionEnchants");
             if (factionEnchantsPlugin != null) {
                 // Use reflection to avoid hard dependency
                 var getEnchantManagerMethod = factionEnchantsPlugin.getClass().getMethod("getEnchantmentManager");
@@ -361,6 +359,16 @@ public class KitManager {
         return armor;
     }
 
+    private ItemStack createEnchantedHelmet(String name, Material material) {
+        ItemStack armor = createEnchantedArmor(name, material);
+        return applyGuaranteedEnchants(armor, "drunk", "implants");
+    }
+
+    private ItemStack createEnchantedBoots(String name, Material material) {
+        ItemStack armor = createEnchantedArmor(name, material);
+        return applyGuaranteedEnchants(armor, "gears", "springs");
+    }
+
     private ItemStack createStarterArmor(String name, Material material) {
         ItemStack armor = new ItemStack(material);
         ItemMeta meta = armor.getItemMeta();
@@ -387,6 +395,16 @@ public class KitManager {
         return armor;
     }
 
+    private ItemStack createStarterHelmet(String name, Material material) {
+        ItemStack armor = createStarterArmor(name, material);
+        return applyGuaranteedEnchants(armor, "drunk", "implants");
+    }
+
+    private ItemStack createStarterBoots(String name, Material material) {
+        ItemStack armor = createStarterArmor(name, material);
+        return applyGuaranteedEnchants(armor, "gears", "springs");
+    }
+
     private ItemStack createStarterSword(String name, Material material) {
         ItemStack sword = new ItemStack(material);
         ItemMeta meta = sword.getItemMeta();
@@ -410,7 +428,70 @@ public class KitManager {
             plugin.getLogger().warning("Could not apply random custom enchants to starter sword: " + e.getMessage());
         }
 
+        // Guaranteed sword enchants
+        sword = applyGuaranteedEnchants(sword, "rage", "silence", "lifesteal");
+
         return sword;
+    }
+
+    /**
+     * Apply specific named custom enchants at level 3 as guaranteed enchants.
+     * Uses name-based method lookup to avoid needing a hard dependency on CustomEnchantment class.
+     */
+    private ItemStack applyGuaranteedEnchants(ItemStack item, String... enchantNames) {
+        try {
+            var fe = plugin.getServer().getPluginManager().getPlugin("FactionEnchants");
+            if (fe == null) return item;
+            var enchantMgr = fe.getClass().getMethod("getEnchantmentManager").invoke(fe);
+            // Find getEnchantment(String) by name to avoid class resolution issues
+            java.lang.reflect.Method getEnch = null;
+            java.lang.reflect.Method applyEnch = null;
+            for (java.lang.reflect.Method m : enchantMgr.getClass().getMethods()) {
+                if (m.getName().equals("getEnchantment") && m.getParameterCount() == 1
+                        && m.getParameterTypes()[0] == String.class) {
+                    getEnch = m;
+                }
+                if (m.getName().equals("applyEnchantment") && m.getParameterCount() == 3) {
+                    applyEnch = m;
+                }
+            }
+            if (getEnch == null || applyEnch == null) {
+                plugin.getLogger().warning("[SimpleKits] Could not find EnchantmentManager methods via reflection.");
+                return item;
+            }
+            for (String enchantName : enchantNames) {
+                Object ench = getEnch.invoke(enchantMgr, enchantName);
+                if (ench != null) {
+                    item = (ItemStack) applyEnch.invoke(enchantMgr, item, ench, 3);
+                } else {
+                    plugin.getLogger().warning("[SimpleKits] Enchant not found: " + enchantName);
+                }
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("[SimpleKits] Could not apply guaranteed enchant: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return item;
+    }
+
+    private ItemStack createEnchantedShovel(String name, Material material) {
+        ItemStack shovel = new ItemStack(material);
+        ItemMeta meta = shovel.getItemMeta();
+        meta.setDisplayName(name);
+        shovel.setItemMeta(meta);
+        shovel.addUnsafeEnchantment(Enchantment.DIG_SPEED, 5);
+        shovel.addUnsafeEnchantment(Enchantment.DURABILITY, 3);
+        try {
+            var fe = plugin.getServer().getPluginManager().getPlugin("FactionEnchants");
+            if (fe != null) {
+                var rgm = fe.getClass().getMethod("getRandomGearManager").invoke(fe);
+                var gen = rgm.getClass().getMethod("generateRandomEnchantedGear", ItemStack.class, int.class, int.class);
+                shovel = (ItemStack) gen.invoke(rgm, shovel, 3, 5);
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("Could not apply custom enchants to shovel: " + e.getMessage());
+        }
+        return shovel;
     }
 
     private ItemStack createNamedItem(String name, Material material, int amount) {
