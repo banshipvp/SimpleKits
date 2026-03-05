@@ -12,6 +12,7 @@ public class SimpleKitsPlugin extends JavaPlugin {
     private RankKitManager rankKitManager;
     private GKitGemManager gkitGemManager;
     private MysterySpawnerManager spawnerManager;
+    private KitEditorManager kitEditorManager;
 
     @Override
     public void onEnable() {
@@ -22,6 +23,7 @@ public class SimpleKitsPlugin extends JavaPlugin {
         rankKitManager = new RankKitManager();
         gkitGemManager = new GKitGemManager(this, kitManager);
         spawnerManager = new MysterySpawnerManager(this);
+        kitEditorManager = new KitEditorManager(this, rankKitManager, kitManager);
 
         // Load kits from config
         kitManager.loadKits();
@@ -32,7 +34,40 @@ public class SimpleKitsPlugin extends JavaPlugin {
         // Register commands
         getCommand("gkits").setExecutor(new GKitsCommand(this, kitManager));
         getCommand("kits").setExecutor(kitsCommand);
-        getCommand("gkit").setExecutor(new GKitCommand(kitManager, gkitGemManager));
+        getCommand("gkit").setExecutor(new GKitCommand(kitManager, gkitGemManager, kitEditorManager));
+        getCommand("kit").setExecutor(new KitCommand(rankKitManager, kitEditorManager));
+        getCommand("kitcreate").setExecutor((sender, command, label, args) -> {
+            if (!(sender instanceof org.bukkit.entity.Player player)) {
+                sender.sendMessage("§cThis command can only be used by players.");
+                return true;
+            }
+            if (!player.hasPermission("simplekits.admin")) {
+                player.sendMessage("§cYou do not have permission to create kits.");
+                return true;
+            }
+            if (args.length == 0) {
+                kitEditorManager.promptForName(player, KitEditorManager.CreationType.KIT);
+            } else {
+                kitEditorManager.startEditor(player, KitEditorManager.CreationType.KIT, String.join(" ", args));
+            }
+            return true;
+        });
+        getCommand("gkitcreate").setExecutor((sender, command, label, args) -> {
+            if (!(sender instanceof org.bukkit.entity.Player player)) {
+                sender.sendMessage("§cThis command can only be used by players.");
+                return true;
+            }
+            if (!player.hasPermission("simplekits.admin")) {
+                player.sendMessage("§cYou do not have permission to create gkits.");
+                return true;
+            }
+            if (args.length == 0) {
+                kitEditorManager.promptForName(player, KitEditorManager.CreationType.GKIT);
+            } else {
+                kitEditorManager.startEditor(player, KitEditorManager.CreationType.GKIT, String.join(" ", args));
+            }
+            return true;
+        });
         getCommand("gkitgem").setExecutor(new GKitGemCommand(kitManager, gkitGemManager));
         getCommand("gkitlock").setExecutor(new GKitLockCommand(gkitGemManager));
         GKitUnlockCommand gkitUnlockCommand = new GKitUnlockCommand(kitManager, gkitGemManager);
@@ -45,6 +80,7 @@ public class SimpleKitsPlugin extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new GKitGuiListener(kitManager, gkitGemManager), this);
         Bukkit.getPluginManager().registerEvents(new KitsGuiListener(rankKitManager, kitsCommand), this);
         Bukkit.getPluginManager().registerEvents(new MysterySpawnerListener(spawnerManager), this);
+        Bukkit.getPluginManager().registerEvents(new KitEditorListener(kitEditorManager), this);
 
         getLogger().info("SimpleKits enabled successfully.");
         getLogger().info("Loaded " + kitManager.getKitCount() + " gkits.");
@@ -69,5 +105,9 @@ public class SimpleKitsPlugin extends JavaPlugin {
 
     public MysterySpawnerManager getSpawnerManager() {
         return spawnerManager;
+    }
+
+    public KitEditorManager getKitEditorManager() {
+        return kitEditorManager;
     }
 }

@@ -20,6 +20,7 @@ public class GKitGemManager {
     private final SimpleKitsPlugin plugin;
     private final KitManager kitManager;
     private final NamespacedKey gemKey;
+    private final NamespacedKey gkitCustomEnchantsKey;
     private final Random random = new Random();
     private final Map<UUID, Set<String>> unlockedKits = new HashMap<>();
 
@@ -27,6 +28,7 @@ public class GKitGemManager {
         this.plugin = plugin;
         this.kitManager = kitManager;
         this.gemKey = new NamespacedKey(plugin, "gkit_gem");
+        this.gkitCustomEnchantsKey = new NamespacedKey(plugin, "gkit_custom_enchants");
     }
 
     /**
@@ -199,8 +201,49 @@ public class GKitGemManager {
     }
 
     private List<ItemStack> createRandomDiamondSet(GKit kit) {
-        // Return actual kit items instead of generating random sets
-        return Arrays.asList(kit.getItems());
+        List<ItemStack> generated = new ArrayList<>();
+        for (ItemStack item : kit.getItemsCopy()) {
+            generated.add(applyRandomizedCustomEnchants(item));
+        }
+        return generated;
+    }
+
+    private ItemStack applyRandomizedCustomEnchants(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return item;
+        ItemMeta meta = item.getItemMeta();
+        String csv = meta.getPersistentDataContainer().get(gkitCustomEnchantsKey, PersistentDataType.STRING);
+        if (csv == null || csv.isBlank()) return item;
+
+        var fe = plugin.getServer().getPluginManager().getPlugin("FactionEnchants");
+        if (fe == null) return item;
+
+        try {
+            var enchantManager = fe.getClass().getMethod("getEnchantmentManager").invoke(fe);
+            var getEnchantment = enchantManager.getClass().getMethod("getEnchantment", String.class);
+            java.lang.reflect.Method applyEnchantment = null;
+            for (java.lang.reflect.Method method : enchantManager.getClass().getMethods()) {
+                if (method.getName().equals("applyEnchantment") && method.getParameterCount() == 3) {
+                    applyEnchantment = method;
+                    break;
+                }
+            }
+            if (applyEnchantment == null) return item;
+
+            for (String id : csv.split(",")) {
+                String cleaned = id.trim();
+                if (cleaned.isEmpty()) continue;
+                Object enchant = getEnchantment.invoke(enchantManager, cleaned);
+                if (enchant == null) continue;
+
+                int maxLevel = (int) enchant.getClass().getMethod("getMaxLevel").invoke(enchant);
+                int rolled = 1 + random.nextInt(Math.max(1, maxLevel));
+                item = (ItemStack) applyEnchantment.invoke(enchantManager, item, enchant, rolled);
+            }
+        } catch (Exception ex) {
+            plugin.getLogger().warning("Failed to apply randomized custom gkit enchants: " + ex.getMessage());
+        }
+
+        return item;
     }
 
     private ItemStack createRandomArmorPiece(GKit kit, Material material, String pieceName) {

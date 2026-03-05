@@ -156,6 +156,10 @@ public class RankKitManager {
         return kits.get(name.toLowerCase());
     }
 
+    public void registerKit(RankKit kit) {
+        kits.put(kit.getName().toLowerCase(), kit);
+    }
+
     public RankTier getPlayerRank(Player player) {
         try {
             LuckPerms api = LuckPermsProvider.get();

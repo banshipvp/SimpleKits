@@ -15,6 +15,10 @@ commands:
   gkit:
     description: Claim a specific gkit
     usage: /gkit <kitname>
+  gkitcreate:
+    description: Create a custom gkit via GUI
+    usage: /gkitcreate [name]
+    permission: simplekits.admin
   gkitgem:
     description: Give gkit gems
     usage: /gkitgem give <player> <kit|random> [amount]
@@ -28,3 +32,10 @@ commands:
   spawner:
     description: Get a mystery spawner
     usage: /spawner [open]
+  kit:
+    description: Claim a specific kit or create one
+    usage: /kit <name>|create [name]
+  kitcreate:
+    description: Create a custom kit via GUI
+    usage: /kitcreate [name]
+    permission: simplekits.admin

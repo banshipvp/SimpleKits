@@ -515,6 +515,10 @@ public class KitManager {
     public Collection<GKit> getAllKits() {
         return kits.values();
     }
+
+    public void registerKit(GKit kit) {
+        kits.put(kit.getName().toLowerCase(Locale.ROOT), kit);
+    }
     
     /**
      * Get kit count

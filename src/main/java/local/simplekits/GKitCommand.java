@@ -12,10 +12,12 @@ public class GKitCommand implements CommandExecutor {
 
     private final KitManager kitManager;
     private final GKitGemManager gemManager;
+    private final KitEditorManager editorManager;
 
-    public GKitCommand(KitManager kitManager, GKitGemManager gemManager) {
+    public GKitCommand(KitManager kitManager, GKitGemManager gemManager, KitEditorManager editorManager) {
         this.kitManager = kitManager;
         this.gemManager = gemManager;
+        this.editorManager = editorManager;
     }
 
     @Override
@@ -27,8 +29,22 @@ public class GKitCommand implements CommandExecutor {
 
         Player player = (Player) sender;
 
+        if (args.length > 0 && args[0].equalsIgnoreCase("create")) {
+            if (!player.hasPermission("simplekits.admin")) {
+                player.sendMessage("§cYou do not have permission to create gkits.");
+                return true;
+            }
+            if (args.length >= 2) {
+                editorManager.startEditor(player, KitEditorManager.CreationType.GKIT, joinArgs(args, 1));
+            } else {
+                editorManager.promptForName(player, KitEditorManager.CreationType.GKIT);
+            }
+            return true;
+        }
+
         if (args.length == 0) {
             player.sendMessage("§c/gkit <kitname>");
+            player.sendMessage("§c/gkit create [name]");
             player.sendMessage("§7Available kits:");
             for (GKit kit : kitManager.getAllKits()) {
                 player.sendMessage("§7  • §6" + kit.getName());
@@ -45,7 +61,7 @@ public class GKitCommand implements CommandExecutor {
         }
         
         // Check if player has unlocked this kit
-        if (!gemManager.hasUnlockedKit(player.getUniqueId(), kitName)) {
+        if (!player.hasPermission("simplekits.admin") && !gemManager.hasUnlockedKit(player.getUniqueId(), kitName)) {
             player.sendMessage("§c§lKit Locked!");
             player.sendMessage("§7You must use a §b" + kit.getDisplayName() + " Gem §7to unlock this kit first.");
             player.sendMessage("§7Gems can be obtained from crates, events, or purchases.");
@@ -62,5 +78,14 @@ public class GKitCommand implements CommandExecutor {
         // Claim the kit
         gemManager.unlockKit(player, kitName);
         return true;
+    }
+
+    private String joinArgs(String[] args, int startIndex) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = startIndex; i < args.length; i++) {
+            if (i > startIndex) sb.append(' ');
+            sb.append(args[i]);
+        }
+        return sb.toString();
     }
 }

@@ -51,7 +51,7 @@ public class GKitGuiListener implements Listener {
      */
     private void handleKitSelection(Player player, GKit kit) {
         // Check if player has unlocked this kit
-        if (!gemManager.hasUnlockedKit(player.getUniqueId(), kit.getName())) {
+        if (!player.hasPermission("simplekits.admin") && !gemManager.hasUnlockedKit(player.getUniqueId(), kit.getName())) {
             player.sendMessage("§c§lKit Locked!");
             player.sendMessage("§7You must use a §b" + kit.getDisplayName() + " Gem §7to unlock this kit first.");
             player.sendMessage("§7Gems can be obtained from crates, events, or purchases.");
