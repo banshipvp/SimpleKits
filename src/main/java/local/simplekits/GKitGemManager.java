@@ -8,7 +8,9 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.plugin.Plugin;
 
+import java.lang.reflect.Method;
 import java.util.*;
 
 /**
@@ -172,6 +174,10 @@ public class GKitGemManager {
      * Give kit items to a player and set cooldown (called from GUI)
      */
     public boolean giveKitItems(Player player, GKit kit) {
+        return giveKitItems(player, kit, true);
+    }
+
+    public boolean giveKitItems(Player player, GKit kit, boolean setCooldown) {
         List<ItemStack> randomSet = createRandomDiamondSet(kit);
 
         int requiredSlots = randomSet.size();
@@ -191,11 +197,15 @@ public class GKitGemManager {
             player.getInventory().addItem(item);
         }
 
-        kitManager.setKitCooldown(player.getUniqueId(), kit.getName());
+        if (setCooldown) {
+            kitManager.setKitCooldown(player.getUniqueId(), kit.getName());
+        }
 
         player.sendMessage("§a§l✓ Kit Claimed!");
         player.sendMessage("§7You received your §6" + kit.getDisplayName() + " §7gear set!");
-        player.sendMessage("§7Next claim available in §e24 hours§7.");
+        if (setCooldown) {
+            player.sendMessage("§7Next claim available in §e24 hours§7.");
+        }
 
         return true;
     }
@@ -203,41 +213,92 @@ public class GKitGemManager {
     private List<ItemStack> createRandomDiamondSet(GKit kit) {
         List<ItemStack> generated = new ArrayList<>();
         for (ItemStack item : kit.getItemsCopy()) {
-            generated.add(applyRandomizedCustomEnchants(item));
+            generated.add(applyRandomizedCustomEnchants(item, kit.getName().toLowerCase(Locale.ROOT)));
         }
         return generated;
     }
 
-    private ItemStack applyRandomizedCustomEnchants(ItemStack item) {
+    private ItemStack applyRandomizedCustomEnchants(ItemStack item, String kitName) {
         if (item == null || !item.hasItemMeta()) return item;
-        ItemMeta meta = item.getItemMeta();
-        String csv = meta.getPersistentDataContainer().get(gkitCustomEnchantsKey, PersistentDataType.STRING);
-        if (csv == null || csv.isBlank()) return item;
-
-        var fe = plugin.getServer().getPluginManager().getPlugin("FactionEnchants");
+        Plugin fe = plugin.getServer().getPluginManager().getPlugin("FactionEnchants");
         if (fe == null) return item;
 
         try {
-            var enchantManager = fe.getClass().getMethod("getEnchantmentManager").invoke(fe);
-            var getEnchantment = enchantManager.getClass().getMethod("getEnchantment", String.class);
-            java.lang.reflect.Method applyEnchantment = null;
-            for (java.lang.reflect.Method method : enchantManager.getClass().getMethods()) {
+            Object enchantManager = fe.getClass().getMethod("getEnchantmentManager").invoke(fe);
+
+            Method getEnchantment = enchantManager.getClass().getMethod("getEnchantment", String.class);
+            Method getAllEnchantments = enchantManager.getClass().getMethod("getAllEnchantments");
+            Method getEnchantmentsOnItem = enchantManager.getClass().getMethod("getEnchantmentsOnItem", ItemStack.class);
+            Method removeEnchantment = null;
+            Method applyEnchantment = null;
+            for (Method method : enchantManager.getClass().getMethods()) {
                 if (method.getName().equals("applyEnchantment") && method.getParameterCount() == 3) {
                     applyEnchantment = method;
-                    break;
+                }
+                if (method.getName().equals("removeEnchantment") && method.getParameterCount() == 2) {
+                    removeEnchantment = method;
                 }
             }
-            if (applyEnchantment == null) return item;
+            if (applyEnchantment == null || removeEnchantment == null) return item;
 
-            for (String id : csv.split(",")) {
-                String cleaned = id.trim();
-                if (cleaned.isEmpty()) continue;
-                Object enchant = getEnchantment.invoke(enchantManager, cleaned);
+            Map<?, ?> existing = (Map<?, ?>) getEnchantmentsOnItem.invoke(enchantManager, item);
+            for (Object customEnchant : new ArrayList<>(existing.keySet())) {
+                item = (ItemStack) removeEnchantment.invoke(enchantManager, item, customEnchant);
+            }
+
+            Set<String> selectedIds = new LinkedHashSet<>();
+            ItemMeta meta = item.getItemMeta();
+            String csv = meta.getPersistentDataContainer().get(gkitCustomEnchantsKey, PersistentDataType.STRING);
+            if (csv != null && !csv.isBlank()) {
+                for (String id : csv.split(",")) {
+                    String clean = id.trim().toLowerCase(Locale.ROOT);
+                    if (!clean.isEmpty()) selectedIds.add(clean);
+                }
+            }
+
+            if (item.getType().name().endsWith("_CHESTPLATE")) {
+                selectedIds.add("overload");
+            }
+            if (item.getType().name().endsWith("_SWORD")) {
+                selectedIds.add("rage");
+            }
+            if (kitName.equals("miner") && item.getType().name().endsWith("_SHOVEL")) {
+                selectedIds.add("detonate");
+            }
+
+            List<Object> applicablePool = new ArrayList<>();
+            Collection<?> all = (Collection<?>) getAllEnchantments.invoke(enchantManager);
+            for (Object enchant : all) {
+                Method canApplyTo = enchant.getClass().getMethod("canApplyTo", ItemStack.class);
+                boolean applies = (boolean) canApplyTo.invoke(enchant, item);
+                if (applies) {
+                    applicablePool.add(enchant);
+                }
+            }
+            if (applicablePool.isEmpty()) return item;
+
+            Set<String> appliedIds = new LinkedHashSet<>();
+
+            for (String id : selectedIds) {
+                if (appliedIds.size() >= 9) break;
+                Object enchant = getEnchantment.invoke(enchantManager, id);
                 if (enchant == null) continue;
-
                 int maxLevel = (int) enchant.getClass().getMethod("getMaxLevel").invoke(enchant);
                 int rolled = 1 + random.nextInt(Math.max(1, maxLevel));
                 item = (ItemStack) applyEnchantment.invoke(enchantManager, item, enchant, rolled);
+                appliedIds.add(id);
+            }
+
+            int targetCount = 4 + random.nextInt(6); // 4..9
+            Collections.shuffle(applicablePool, random);
+            for (Object enchant : applicablePool) {
+                if (appliedIds.size() >= 9 || appliedIds.size() >= targetCount) break;
+                String id = ((String) enchant.getClass().getMethod("getId").invoke(enchant)).toLowerCase(Locale.ROOT);
+                if (appliedIds.contains(id)) continue;
+                int maxLevel = (int) enchant.getClass().getMethod("getMaxLevel").invoke(enchant);
+                int rolled = 1 + random.nextInt(Math.max(1, maxLevel));
+                item = (ItemStack) applyEnchantment.invoke(enchantManager, item, enchant, rolled);
+                appliedIds.add(id);
             }
         } catch (Exception ex) {
             plugin.getLogger().warning("Failed to apply randomized custom gkit enchants: " + ex.getMessage());

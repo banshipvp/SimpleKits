@@ -160,6 +160,10 @@ public class RankKitManager {
         kits.put(kit.getName().toLowerCase(), kit);
     }
 
+    public boolean unregisterKit(String name) {
+        return kits.remove(name.toLowerCase()) != null;
+    }
+
     public RankTier getPlayerRank(Player player) {
         try {
             LuckPerms api = LuckPermsProvider.get();

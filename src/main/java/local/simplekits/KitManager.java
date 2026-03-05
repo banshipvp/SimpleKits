@@ -491,7 +491,7 @@ public class KitManager {
         } catch (Exception e) {
             plugin.getLogger().warning("Could not apply custom enchants to shovel: " + e.getMessage());
         }
-        return shovel;
+        return applyGuaranteedEnchants(shovel, "detonate");
     }
 
     private ItemStack createNamedItem(String name, Material material, int amount) {
@@ -518,6 +518,10 @@ public class KitManager {
 
     public void registerKit(GKit kit) {
         kits.put(kit.getName().toLowerCase(Locale.ROOT), kit);
+    }
+
+    public boolean unregisterKit(String name) {
+        return kits.remove(name.toLowerCase(Locale.ROOT)) != null;
     }
     
     /**

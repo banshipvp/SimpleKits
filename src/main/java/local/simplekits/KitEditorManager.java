@@ -19,13 +19,14 @@ public class KitEditorManager {
 
     public enum CreationType { KIT, GKIT }
 
-    enum MenuState { MAIN, GEAR, TOOLS, CRATES, XP, ENCHANTS }
+    enum MenuState { MAIN, GEAR, TOOLS, CRATES, XP, MISC, ENCHANTS }
 
     private static final String TITLE_MAIN_PREFIX = "§8Builder: ";
     private static final String TITLE_GEAR_PREFIX = "§8Gear: ";
     private static final String TITLE_TOOLS_PREFIX = "§8Tools: ";
     private static final String TITLE_CRATES_PREFIX = "§8Crates: ";
     private static final String TITLE_XP_PREFIX = "§8XP: ";
+    private static final String TITLE_MISC_PREFIX = "§8Misc: ";
     private static final String TITLE_ENCHANTS_PREFIX = "§8Enchants: ";
 
     private static final List<Material> GEAR_OPTIONS = List.of(
@@ -89,13 +90,9 @@ public class KitEditorManager {
             return;
         }
 
-        Session session = new Session(player.getUniqueId(), type, keyName, displayName);
+        Session session = new Session(type, keyName, displayName);
         sessions.put(player.getUniqueId(), session);
         openMainMenu(player, session);
-    }
-
-    public boolean hasSession(UUID playerId) {
-        return sessions.containsKey(playerId);
     }
 
     public boolean handleInventoryClick(Player player, Inventory inventory, String title, int slot, org.bukkit.event.inventory.ClickType clickType, ItemStack clicked) {
@@ -119,7 +116,11 @@ public class KitEditorManager {
             return true;
         }
         if (title.startsWith(TITLE_XP_PREFIX)) {
-            handleXpClick(player, session, slot, clickType, clicked);
+            handleXpClick(player, session, slot);
+            return true;
+        }
+        if (title.startsWith(TITLE_MISC_PREFIX)) {
+            handleMiscClick(player, session, slot, clickType, clicked);
             return true;
         }
         if (title.startsWith(TITLE_ENCHANTS_PREFIX)) {
@@ -134,13 +135,16 @@ public class KitEditorManager {
 
         inv.setItem(10, named(Material.DIAMOND_CHESTPLATE, "§bGear", List.of("§7Configure armor pieces")));
         inv.setItem(11, named(Material.DIAMOND_SWORD, "§bTools / Weapons", List.of("§7Configure weapons and tools")));
-        inv.setItem(12, named(Material.CHEST, "§bCrates", List.of("§7Add crate items")));
-        inv.setItem(13, named(Material.EXPERIENCE_BOTTLE, "§bXP", List.of("§7Set XP bottles amount")));
+        inv.setItem(12, named(Material.CHEST, "§bCrates", List.of("§7Use exact crates from SimpleCrates")));
+        inv.setItem(13, named(Material.EXPERIENCE_BOTTLE, "§bXP", List.of("§7Set custom XP value for 1 bottle")));
+        if (session.type == CreationType.GKIT) {
+            inv.setItem(14, named(Material.BOOK, "§bMiscellaneous", List.of("§7Black scrolls & unopened custom books")));
+        }
 
         inv.setItem(15, named(Material.EMERALD_BLOCK, "§aConfirm & Create", List.of(
-                "§7Kit Name: §f" + session.displayName,
+                "§7Name: §f" + session.displayName,
                 "§7Selected Items: §f" + session.selectedItems.size(),
-                "§7XP Bottles: §f" + session.xpBottles
+                "§7XP Bottle Value: §f" + session.xpBottleValue
         )));
         inv.setItem(16, named(Material.BARRIER, "§cCancel", List.of("§7Cancel this creation session")));
 
@@ -155,7 +159,7 @@ public class KitEditorManager {
         for (Material material : GEAR_OPTIONS) {
             inv.setItem(slot++, decoratedSelectable(session, material));
         }
-        addBackConfirmHints(inv);
+        addBackDone(inv);
         player.openInventory(inv);
         session.menuState = MenuState.GEAR;
     }
@@ -166,7 +170,7 @@ public class KitEditorManager {
         for (Material material : TOOL_OPTIONS) {
             inv.setItem(slot++, decoratedSelectable(session, material));
         }
-        addBackConfirmHints(inv);
+        addBackDone(inv);
         player.openInventory(inv);
         session.menuState = MenuState.TOOLS;
     }
@@ -174,12 +178,10 @@ public class KitEditorManager {
     private void openCratesMenu(Player player, Session session) {
         Inventory inv = Bukkit.createInventory(null, 27, TITLE_CRATES_PREFIX + session.displayName);
 
-        inv.setItem(10, crateItem("simple", "§7§lSimple Crate", session));
-        inv.setItem(11, crateItem("unique", "§a§lUnique Crate", session));
-        inv.setItem(12, crateItem("elite", "§b§lElite Crate", session));
-        inv.setItem(13, crateItem("ultimate", "§5§lUltimate Crate", session));
-        inv.setItem(14, crateItem("legendary", "§6§lLegendary Crate", session));
-        inv.setItem(15, crateItem("godly", "§d§lGodly Crate", session));
+        int slot = 10;
+        for (String tier : List.of("simple", "unique", "elite", "ultimate", "legendary", "godly")) {
+            inv.setItem(slot++, crateItemFromSimpleCrates(tier, session));
+        }
 
         inv.setItem(18, named(Material.ARROW, "§eBack", List.of("§7Return to main menu")));
         inv.setItem(26, named(Material.EMERALD, "§aDone", List.of("§7Return to main menu")));
@@ -190,18 +192,33 @@ public class KitEditorManager {
 
     private void openXpMenu(Player player, Session session) {
         Inventory inv = Bukkit.createInventory(null, 27, TITLE_XP_PREFIX + session.displayName);
-        inv.setItem(10, named(Material.EXPERIENCE_BOTTLE, "§a+16 XP Bottles", List.of("§7Left click to add")));
-        inv.setItem(11, named(Material.EXPERIENCE_BOTTLE, "§a+32 XP Bottles", List.of("§7Left click to add")));
-        inv.setItem(12, named(Material.EXPERIENCE_BOTTLE, "§a+64 XP Bottles", List.of("§7Left click to add")));
-        inv.setItem(14, named(Material.REDSTONE, "§c-16 XP Bottles", List.of("§7Right click style remove")));
-        inv.setItem(15, named(Material.REDSTONE, "§c-32 XP Bottles", List.of("§7Right click style remove")));
-        inv.setItem(16, named(Material.REDSTONE, "§c-64 XP Bottles", List.of("§7Right click style remove")));
-        inv.setItem(13, named(Material.BOOK, "§eCurrent: §f" + session.xpBottles, List.of("§7Stored as experience bottles")));
+        inv.setItem(10, named(Material.LIME_DYE, "§a+500", List.of("§7Add 500 XP value")));
+        inv.setItem(11, named(Material.LIME_DYE, "§a+1000", List.of("§7Add 1000 XP value")));
+        inv.setItem(14, named(Material.RED_DYE, "§c-500", List.of("§7Subtract 500 XP value")));
+        inv.setItem(15, named(Material.RED_DYE, "§c-1000", List.of("§7Subtract 1000 XP value")));
+        inv.setItem(13, named(Material.EXPERIENCE_BOTTLE, "§eCurrent Bottle Value: §f" + session.xpBottleValue, List.of("§7Final kit gives 1 custom XP bottle")));
         inv.setItem(18, named(Material.ARROW, "§eBack", List.of("§7Return to main menu")));
         inv.setItem(26, named(Material.EMERALD, "§aDone", List.of("§7Return to main menu")));
         fill(inv, Material.GRAY_STAINED_GLASS_PANE);
         player.openInventory(inv);
         session.menuState = MenuState.XP;
+    }
+
+    private void openMiscMenu(Player player, Session session) {
+        Inventory inv = Bukkit.createInventory(null, 27, TITLE_MISC_PREFIX + session.displayName);
+
+        inv.setItem(10, miscSelectable(session, "BLACK_SCROLL", createBlackScrollItem()));
+        inv.setItem(11, miscSelectable(session, "BOOK_UNIQUE", createRandomEnchantBook("UNIQUE")));
+        inv.setItem(12, miscSelectable(session, "BOOK_ELITE", createRandomEnchantBook("ELITE")));
+        inv.setItem(13, miscSelectable(session, "BOOK_ULTIMATE", createRandomEnchantBook("ULTIMATE")));
+        inv.setItem(14, miscSelectable(session, "BOOK_LEGENDARY", createRandomEnchantBook("LEGENDARY")));
+        inv.setItem(15, miscSelectable(session, "BOOK_SOUL", createRandomEnchantBook("SOUL")));
+
+        inv.setItem(18, named(Material.ARROW, "§eBack", List.of("§7Return to main menu")));
+        inv.setItem(26, named(Material.EMERALD, "§aDone", List.of("§7Return to main menu")));
+        fill(inv, Material.GRAY_STAINED_GLASS_PANE);
+        player.openInventory(inv);
+        session.menuState = MenuState.MISC;
     }
 
     private void openEnchantMenu(Player player, Session session, Material targetMaterial, MenuState returnMenu) {
@@ -223,7 +240,7 @@ public class KitEditorManager {
             }
         }
 
-        inv.setItem(45, named(Material.ARROW, "§eBack", List.of("§7Return without closing editor")));
+        inv.setItem(45, named(Material.ARROW, "§eBack", List.of("§7Return to previous page")));
         inv.setItem(53, named(Material.EMERALD, "§aConfirm", List.of("§7Save selections and go back")));
         fillMainAreaEmpty(inv, Material.BLACK_STAINED_GLASS_PANE);
         player.openInventory(inv);
@@ -236,6 +253,11 @@ public class KitEditorManager {
             case 11 -> openToolsMenu(player, session);
             case 12 -> openCratesMenu(player, session);
             case 13 -> openXpMenu(player, session);
+            case 14 -> {
+                if (session.type == CreationType.GKIT) {
+                    openMiscMenu(player, session);
+                }
+            }
             case 15 -> finalizeCreation(player, session);
             case 16 -> {
                 sessions.remove(player.getUniqueId());
@@ -253,6 +275,7 @@ public class KitEditorManager {
             return;
         }
         if (clicked == null) return;
+
         Material material = clicked.getType();
         if (material == Material.AIR || material.name().contains("GLASS") || material == Material.ARROW || material == Material.EMERALD) return;
 
@@ -286,37 +309,58 @@ public class KitEditorManager {
             openMainMenu(player, session);
             return;
         }
-        if (clicked == null || clicked.getType() != Material.CHEST || !clicked.hasItemMeta()) return;
-        String key = clicked.getItemMeta().getPersistentDataContainer().get(new NamespacedKey(plugin, "crate_tier"), PersistentDataType.STRING);
-        if (key == null) return;
-        String mapKey = "CRATE_" + key;
+        if (clicked == null || !clicked.hasItemMeta()) return;
+
+        String tier = clicked.getItemMeta().getPersistentDataContainer().get(new NamespacedKey(plugin, "editor_crate_tier"), PersistentDataType.STRING);
+        if (tier == null) return;
+        String mapKey = "CRATE_" + tier;
+
         if (clickType.isLeftClick()) {
             session.extraItems.put(mapKey, clicked.clone());
-            player.sendMessage("§aSelected crate: §f" + key);
+            player.sendMessage("§aSelected crate: §f" + tier);
         } else if (clickType.isRightClick()) {
             session.extraItems.remove(mapKey);
-            player.sendMessage("§cRemoved crate: §f" + key);
+            player.sendMessage("§cRemoved crate: §f" + tier);
         }
+
         openCratesMenu(player, session);
     }
 
-    private void handleXpClick(Player player, Session session, int slot, org.bukkit.event.inventory.ClickType clickType, ItemStack clicked) {
+    private void handleXpClick(Player player, Session session, int slot) {
         if (slot == 18 || slot == 26) {
             openMainMenu(player, session);
             return;
         }
-        if (clicked == null) return;
+
         switch (slot) {
-            case 10 -> session.xpBottles += 16;
-            case 11 -> session.xpBottles += 32;
-            case 12 -> session.xpBottles += 64;
-            case 14 -> session.xpBottles = Math.max(0, session.xpBottles - 16);
-            case 15 -> session.xpBottles = Math.max(0, session.xpBottles - 32);
-            case 16 -> session.xpBottles = Math.max(0, session.xpBottles - 64);
+            case 10 -> session.xpBottleValue += 500;
+            case 11 -> session.xpBottleValue += 1000;
+            case 14 -> session.xpBottleValue = Math.max(0, session.xpBottleValue - 500);
+            case 15 -> session.xpBottleValue = Math.max(0, session.xpBottleValue - 1000);
             default -> {
             }
         }
+
         openXpMenu(player, session);
+    }
+
+    private void handleMiscClick(Player player, Session session, int slot, org.bukkit.event.inventory.ClickType clickType, ItemStack clicked) {
+        if (slot == 18 || slot == 26) {
+            openMainMenu(player, session);
+            return;
+        }
+        if (clicked == null || !clicked.hasItemMeta()) return;
+        String key = clicked.getItemMeta().getPersistentDataContainer().get(new NamespacedKey(plugin, "editor_misc_key"), PersistentDataType.STRING);
+        if (key == null) return;
+
+        if (clickType.isLeftClick()) {
+            session.extraItems.put("MISC_" + key, clicked.clone());
+            player.sendMessage("§aSelected misc item: §f" + key);
+        } else if (clickType.isRightClick()) {
+            session.extraItems.remove("MISC_" + key);
+            player.sendMessage("§cRemoved misc item: §f" + key);
+        }
+        openMiscMenu(player, session);
     }
 
     private void handleEnchantClick(Player player, Session session, int slot, org.bukkit.event.inventory.ClickType clickType, ItemStack clicked) {
@@ -333,6 +377,7 @@ public class KitEditorManager {
             if (key == null || lvl == null) return;
             Enchantment enchantment = Enchantment.getByName(key);
             if (enchantment == null) return;
+
             Map<Enchantment, Integer> selected = session.vanillaEnchantSelections.computeIfAbsent(session.enchantTarget.name(), k -> new HashMap<>());
             if (clickType.isLeftClick()) {
                 selected.put(enchantment, lvl);
@@ -360,6 +405,7 @@ public class KitEditorManager {
 
     private void finalizeCreation(Player player, Session session) {
         List<ItemStack> items = new ArrayList<>();
+
         for (Map.Entry<String, ItemStack> entry : session.selectedItems.entrySet()) {
             ItemStack item = entry.getValue().clone();
             applyVanillaEnchants(session, entry.getKey(), item);
@@ -368,16 +414,13 @@ public class KitEditorManager {
             }
             items.add(item);
         }
+
         for (ItemStack extra : session.extraItems.values()) {
             items.add(extra.clone());
         }
-        if (session.xpBottles > 0) {
-            items.add(new ItemStack(Material.EXPERIENCE_BOTTLE, Math.min(64, session.xpBottles)));
-            int rem = session.xpBottles - 64;
-            while (rem > 0) {
-                items.add(new ItemStack(Material.EXPERIENCE_BOTTLE, Math.min(64, rem)));
-                rem -= 64;
-            }
+
+        if (session.xpBottleValue > 0) {
+            items.add(createCustomXpBottle(session.xpBottleValue));
         }
 
         if (items.isEmpty()) {
@@ -422,8 +465,7 @@ public class KitEditorManager {
 
     private ItemStack baseItem(Material material, boolean gkitDefaults) {
         ItemStack item = new ItemStack(material);
-        if (!gkitDefaults) return item;
-        if (isArmor(material)) {
+        if (gkitDefaults && isArmor(material)) {
             item.addUnsafeEnchantment(Enchantment.PROTECTION_ENVIRONMENTAL, 5);
             item.addUnsafeEnchantment(Enchantment.DURABILITY, 3);
         }
@@ -452,17 +494,117 @@ public class KitEditorManager {
         return item;
     }
 
-    private ItemStack crateItem(String tier, String displayName, Session session) {
-        ItemStack item = new ItemStack(Material.CHEST);
-        ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(displayName);
+    private ItemStack crateItemFromSimpleCrates(String tier, Session session) {
+        ItemStack crate = createSimpleCratesItem(tier);
+        ItemMeta meta = crate.getItemMeta();
         boolean selected = session.extraItems.containsKey("CRATE_" + tier);
-        meta.setLore(List.of(
-                selected ? "§aSelected" : "§7Not selected",
-                "§7Left click: Select",
-                "§7Right click: Unselect"
-        ));
+        List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
+        lore.add("");
+        lore.add(selected ? "§aSelected" : "§7Not selected");
+        lore.add("§7Left click: Select");
+        lore.add("§7Right click: Unselect");
+        meta.setLore(lore);
+        meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "editor_crate_tier"), PersistentDataType.STRING, tier);
+        if (selected) {
+            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+            crate.addUnsafeEnchantment(Enchantment.DURABILITY, 1);
+        }
+        crate.setItemMeta(meta);
+        return crate;
+    }
+
+    private ItemStack createSimpleCratesItem(String tier) {
+        Plugin cratesPlugin = plugin.getServer().getPluginManager().getPlugin("SimpleCrates");
+        if (cratesPlugin != null) {
+            try {
+                var managerField = cratesPlugin.getClass().getDeclaredField("crateManager");
+                managerField.setAccessible(true);
+                Object crateManager = managerField.get(cratesPlugin);
+
+                Class<?> tierClass = Class.forName("local.simplecrates.CrateTier");
+                Object tierEnum = Enum.valueOf((Class<Enum>) tierClass.asSubclass(Enum.class), tier.toUpperCase(Locale.ROOT));
+
+                Method createMethod = crateManager.getClass().getMethod("createCrateItem", tierClass, int.class);
+                ItemStack created = (ItemStack) createMethod.invoke(crateManager, tierEnum, 1);
+                if (created != null) return created;
+            } catch (Exception ignored) {
+            }
+        }
+
+        ItemStack fallback = new ItemStack(Material.CHEST);
+        ItemMeta meta = fallback.getItemMeta();
+        String pretty = Character.toUpperCase(tier.charAt(0)) + tier.substring(1).toLowerCase(Locale.ROOT);
+        meta.setDisplayName("§f§l" + pretty + " Crate");
         meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "crate_tier"), PersistentDataType.STRING, tier);
+        fallback.setItemMeta(meta);
+        return fallback;
+    }
+
+    private ItemStack createCustomXpBottle(int amount) {
+        Plugin economyPlugin = plugin.getServer().getPluginManager().getPlugin("SimpleEconomy");
+        if (economyPlugin != null) {
+            try {
+                Method managerMethod = economyPlugin.getClass().getMethod("getXPBottleManager");
+                Object manager = managerMethod.invoke(economyPlugin);
+                Method createMethod = manager.getClass().getMethod("createXPBottle", int.class);
+                ItemStack bottle = (ItemStack) createMethod.invoke(manager, amount);
+                if (bottle != null) return bottle;
+            } catch (Exception ignored) {
+            }
+        }
+
+        ItemStack bottle = new ItemStack(Material.EXPERIENCE_BOTTLE);
+        ItemMeta meta = bottle.getItemMeta();
+        meta.setDisplayName("§b§lXP Bottle - " + amount + " XP");
+        meta.setLore(List.of("§7Right-click to consume", "§7Restores §b" + amount + "§7 experience"));
+        bottle.setItemMeta(meta);
+        return bottle;
+    }
+
+    private ItemStack createBlackScrollItem() {
+        ItemStack item = new ItemStack(Material.PAPER);
+        ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName("§8§lBlack Scroll");
+        meta.setLore(List.of(
+                "§7Extracts one random custom enchant",
+                "§7from an item with custom enchants."
+        ));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack createRandomEnchantBook(String tierName) {
+        Plugin fe = plugin.getServer().getPluginManager().getPlugin("FactionEnchants");
+        if (fe != null) {
+            try {
+                Class<?> tierClass = Class.forName("com.factionenchants.enchantments.CustomEnchantment$EnchantTier");
+                Object tierEnum = Enum.valueOf((Class<Enum>) tierClass.asSubclass(Enum.class), tierName.toUpperCase(Locale.ROOT));
+                Class<?> enchantBookClass = Class.forName("com.factionenchants.books.EnchantBook");
+                Method createRandomBook = enchantBookClass.getMethod("createRandomBook", tierClass);
+                ItemStack item = (ItemStack) createRandomBook.invoke(null, tierEnum);
+                if (item != null) return item;
+            } catch (Exception ignored) {
+            }
+        }
+
+        ItemStack fallback = new ItemStack(Material.BOOK);
+        ItemMeta meta = fallback.getItemMeta();
+        meta.setDisplayName("§f§l" + tierName + " Enchant Book");
+        fallback.setItemMeta(meta);
+        return fallback;
+    }
+
+    private ItemStack miscSelectable(Session session, String key, ItemStack base) {
+        ItemStack item = base.clone();
+        ItemMeta meta = item.getItemMeta();
+        boolean selected = session.extraItems.containsKey("MISC_" + key);
+        List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
+        lore.add("");
+        lore.add(selected ? "§aSelected" : "§7Not selected");
+        lore.add("§7Left click: Select");
+        lore.add("§7Right click: Unselect");
+        meta.setLore(lore);
+        meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "editor_misc_key"), PersistentDataType.STRING, key);
         if (selected) {
             meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
             item.addUnsafeEnchantment(Enchantment.DURABILITY, 1);
@@ -513,7 +655,7 @@ public class KitEditorManager {
     }
 
     private ItemStack enchantOptionItem(EnchantOption option, Session session) {
-        ItemStack book = new ItemStack(Material.ENCHANTED_BOOK);
+        ItemStack book = new ItemStack(Material.BOOK);
         ItemMeta meta = book.getItemMeta();
         String key = session.enchantTarget == null ? "" : session.enchantTarget.name();
         int current = session.vanillaEnchantSelections.getOrDefault(key, Collections.emptyMap()).getOrDefault(option.enchantment(), 0);
@@ -536,18 +678,20 @@ public class KitEditorManager {
     }
 
     private ItemStack customEnchantOptionItem(CustomEnchantOption option, Session session) {
-        ItemStack book = new ItemStack(Material.ENCHANTED_BOOK);
+        ItemStack book = new ItemStack(Material.BOOK);
         ItemMeta meta = book.getItemMeta();
         String key = session.enchantTarget == null ? "" : session.enchantTarget.name();
-        boolean selected = session.customEnchantSelections.getOrDefault(key, Collections.emptySet()).contains(option.id());
-        meta.setDisplayName((selected ? "§a" : "§f") + option.displayName());
+        boolean selected = session.customEnchantSelections.getOrDefault(key, Collections.emptySet()).contains(option.id);
+
+        meta.setDisplayName((selected ? "§a" : option.colorCode) + option.displayName);
         meta.setLore(List.of(
-                "§7Max Level: §f" + option.maxLevel(),
+                "§7Tier: " + option.colorCode + option.tierName,
+                "§7Max Level: §f" + option.maxLevel,
                 selected ? "§aSelected" : "§7Not selected",
                 "§7Left click: Toggle selection",
                 "§7These levels are randomized on claim"
         ));
-        meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "custom_id"), PersistentDataType.STRING, option.id());
+        meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "custom_id"), PersistentDataType.STRING, option.id);
         if (selected) {
             meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
             book.addUnsafeEnchantment(Enchantment.DURABILITY, 1);
@@ -567,21 +711,44 @@ public class KitEditorManager {
             Collection<?> all = (Collection<?>) getAll.invoke(manager);
             List<CustomEnchantOption> out = new ArrayList<>();
             ItemStack probe = new ItemStack(material);
+
             for (Object enchant : all) {
-                Method canApply = enchant.getClass().getMethod("canApplyTo", ItemStack.class);
-                boolean applies = (boolean) canApply.invoke(enchant, probe);
+                boolean applies = (boolean) enchant.getClass().getMethod("canApplyTo", ItemStack.class).invoke(enchant, probe);
                 if (!applies) continue;
+
+                Object tierObj = enchant.getClass().getMethod("getTier").invoke(enchant);
+                String tierName = tierObj.toString();
+                int order = tierOrder(tierName);
+                if (order > 6) continue;
+
+                String colorCode = "§" + tierObj.getClass().getMethod("getColor").invoke(tierObj);
                 String id = (String) enchant.getClass().getMethod("getId").invoke(enchant);
                 String display = (String) enchant.getClass().getMethod("getDisplayName").invoke(enchant);
                 int maxLevel = (int) enchant.getClass().getMethod("getMaxLevel").invoke(enchant);
-                out.add(new CustomEnchantOption(id, display, maxLevel));
+                out.add(new CustomEnchantOption(id, display, maxLevel, tierName, colorCode, order));
             }
-            out.sort(Comparator.comparing(CustomEnchantOption::displayName));
+
+            out.sort(Comparator.comparingInt((CustomEnchantOption o) -> o.order)
+                    .thenComparing(o -> strip(o.displayName).toLowerCase(Locale.ROOT)));
             return out;
         } catch (Exception e) {
             plugin.getLogger().warning("Could not load FactionEnchants options: " + e.getMessage());
             return Collections.emptyList();
         }
+    }
+
+    private int tierOrder(String tierName) {
+        return switch (tierName.toUpperCase(Locale.ROOT)) {
+            case "SIMPLE" -> 1;
+            case "UNIQUE" -> 2;
+            case "ELITE" -> 3;
+            case "ULTIMATE" -> 4;
+            case "LEGENDARY" -> 5;
+            case "SOUL" -> 6;
+            case "HEROIC" -> 7;
+            case "MASTERY" -> 8;
+            default -> 99;
+        };
     }
 
     private void reopenCurrentSelectionMenu(Player player, Session session, MenuState source) {
@@ -596,16 +763,12 @@ public class KitEditorManager {
         for (String key : new ArrayList<>(session.selectedItems.keySet())) {
             Material existing = Material.matchMaterial(key);
             if (existing == null || !isArmor(existing)) continue;
-            if (sameArmorSlot(existing, newMat)) {
+            if (armorSuffix(existing).equals(armorSuffix(newMat))) {
                 session.selectedItems.remove(key);
                 session.vanillaEnchantSelections.remove(key);
                 session.customEnchantSelections.remove(key);
             }
         }
-    }
-
-    private boolean sameArmorSlot(Material a, Material b) {
-        return armorSuffix(a).equals(armorSuffix(b));
     }
 
     private String armorSuffix(Material material) {
@@ -647,7 +810,7 @@ public class KitEditorManager {
         }
     }
 
-    private void addBackConfirmHints(Inventory inv) {
+    private void addBackDone(Inventory inv) {
         inv.setItem(45, named(Material.ARROW, "§eBack", List.of("§7Return to main menu")));
         inv.setItem(53, named(Material.EMERALD, "§aDone", List.of("§7Return to main menu")));
         fill(inv, Material.GRAY_STAINED_GLASS_PANE);
@@ -683,10 +846,26 @@ public class KitEditorManager {
     }
 
     private record EnchantOption(Enchantment enchantment, int level) {}
-    private record CustomEnchantOption(String id, String displayName, int maxLevel) {}
+
+    private static final class CustomEnchantOption {
+        private final String id;
+        private final String displayName;
+        private final int maxLevel;
+        private final String tierName;
+        private final String colorCode;
+        private final int order;
+
+        private CustomEnchantOption(String id, String displayName, int maxLevel, String tierName, String colorCode, int order) {
+            this.id = id;
+            this.displayName = displayName;
+            this.maxLevel = maxLevel;
+            this.tierName = tierName;
+            this.colorCode = colorCode;
+            this.order = order;
+        }
+    }
 
     private static final class Session {
-        private final UUID playerId;
         private final CreationType type;
         private final String name;
         private final String displayName;
@@ -699,10 +878,9 @@ public class KitEditorManager {
         private final Map<String, ItemStack> extraItems = new LinkedHashMap<>();
         private final Map<String, Map<Enchantment, Integer>> vanillaEnchantSelections = new HashMap<>();
         private final Map<String, Set<String>> customEnchantSelections = new HashMap<>();
-        private int xpBottles = 0;
+        private int xpBottleValue = 0;
 
-        private Session(UUID playerId, CreationType type, String name, String displayName) {
-            this.playerId = playerId;
+        private Session(CreationType type, String name, String displayName) {
             this.type = type;
             this.name = name;
             this.displayName = displayName;

@@ -4,7 +4,7 @@ api-version: '1.13'
 main: local.simplekits.SimpleKitsPlugin
 description: GKits, gkit gems, and mystery spawners
 authors: [Dev]
-softdepend: [FactionEnchants]
+softdepend: [FactionEnchants, SimpleCrates, SimpleEconomy]
 
 commands:
   gkits:
@@ -19,6 +19,9 @@ commands:
     description: Create a custom gkit via GUI
     usage: /gkitcreate [name]
     permission: simplekits.admin
+  gkitroll:
+    description: Roll and receive a gkit instantly
+    usage: /gkitroll <name>
   gkitgem:
     description: Give gkit gems
     usage: /gkitgem give <player> <kit|random> [amount]
@@ -38,4 +41,8 @@ commands:
   kitcreate:
     description: Create a custom kit via GUI
     usage: /kitcreate [name]
+    permission: simplekits.admin
+  kitdelete:
+    description: Delete a kit or gkit
+    usage: /kitdelete <name>|kit <name>|gkit <name>
     permission: simplekits.admin

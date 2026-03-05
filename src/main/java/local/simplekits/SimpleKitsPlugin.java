@@ -35,6 +35,7 @@ public class SimpleKitsPlugin extends JavaPlugin {
         getCommand("gkits").setExecutor(new GKitsCommand(this, kitManager));
         getCommand("kits").setExecutor(kitsCommand);
         getCommand("gkit").setExecutor(new GKitCommand(kitManager, gkitGemManager, kitEditorManager));
+        getCommand("gkitroll").setExecutor(new GKitRollCommand(kitManager, gkitGemManager));
         getCommand("kit").setExecutor(new KitCommand(rankKitManager, kitEditorManager));
         getCommand("kitcreate").setExecutor((sender, command, label, args) -> {
             if (!(sender instanceof org.bukkit.entity.Player player)) {
@@ -70,6 +71,7 @@ public class SimpleKitsPlugin extends JavaPlugin {
         });
         getCommand("gkitgem").setExecutor(new GKitGemCommand(kitManager, gkitGemManager));
         getCommand("gkitlock").setExecutor(new GKitLockCommand(gkitGemManager));
+        getCommand("kitdelete").setExecutor(new KitDeleteCommand(rankKitManager, kitManager));
         GKitUnlockCommand gkitUnlockCommand = new GKitUnlockCommand(kitManager, gkitGemManager);
         getCommand("gkitunlock").setExecutor(gkitUnlockCommand);
         getCommand("gkitunlock").setTabCompleter(gkitUnlockCommand);
