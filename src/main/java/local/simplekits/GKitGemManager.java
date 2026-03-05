@@ -272,6 +272,10 @@ public class GKitGemManager {
                 Method canApplyTo = enchant.getClass().getMethod("canApplyTo", ItemStack.class);
                 boolean applies = (boolean) canApplyTo.invoke(enchant, item);
                 if (applies) {
+                    // Heroic enchants are excluded from all gkit rolls.
+                    Object tier = enchant.getClass().getMethod("getTier").invoke(enchant);
+                    String tierName = (String) tier.getClass().getMethod("name").invoke(tier);
+                    if ("HEROIC".equals(tierName)) continue;
                     applicablePool.add(enchant);
                 }
             }

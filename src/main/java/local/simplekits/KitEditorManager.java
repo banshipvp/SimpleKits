@@ -11,7 +11,11 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.YamlConfiguration;
 
+import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.*;
 
@@ -19,22 +23,27 @@ public class KitEditorManager {
 
     public enum CreationType { KIT, GKIT }
 
-    enum MenuState { MAIN, GEAR, TOOLS, CRATES, XP, MISC, ENCHANTS }
+    enum MenuState { MAIN, GEAR, TOOLS, CRATES, XP, MISC, ENCHANTS, PREVIEW }
 
-    private static final String TITLE_MAIN_PREFIX = "§8Builder: ";
-    private static final String TITLE_GEAR_PREFIX = "§8Gear: ";
-    private static final String TITLE_TOOLS_PREFIX = "§8Tools: ";
-    private static final String TITLE_CRATES_PREFIX = "§8Crates: ";
-    private static final String TITLE_XP_PREFIX = "§8XP: ";
-    private static final String TITLE_MISC_PREFIX = "§8Misc: ";
+    private static final String TITLE_MAIN_PREFIX    = "§8Builder: ";
+    private static final String TITLE_GEAR_PREFIX     = "§8Gear: ";
+    private static final String TITLE_TOOLS_PREFIX    = "§8Tools: ";
+    private static final String TITLE_CRATES_PREFIX   = "§8Crates: ";
+    private static final String TITLE_XP_PREFIX       = "§8XP: ";
+    private static final String TITLE_MISC_PREFIX     = "§8Misc: ";
     private static final String TITLE_ENCHANTS_PREFIX = "§8Enchants: ";
+    private static final String TITLE_PREVIEW_PREFIX  = "§8Preview: ";
 
-    private static final List<Material> GEAR_OPTIONS = List.of(
-            Material.LEATHER_HELMET, Material.CHAINMAIL_HELMET, Material.IRON_HELMET, Material.DIAMOND_HELMET, Material.NETHERITE_HELMET,
-            Material.LEATHER_CHESTPLATE, Material.CHAINMAIL_CHESTPLATE, Material.IRON_CHESTPLATE, Material.DIAMOND_CHESTPLATE, Material.NETHERITE_CHESTPLATE,
-            Material.LEATHER_LEGGINGS, Material.CHAINMAIL_LEGGINGS, Material.IRON_LEGGINGS, Material.DIAMOND_LEGGINGS, Material.NETHERITE_LEGGINGS,
-            Material.LEATHER_BOOTS, Material.CHAINMAIL_BOOTS, Material.IRON_BOOTS, Material.DIAMOND_BOOTS, Material.NETHERITE_BOOTS
-    );
+    // Armour sets ordered best → worst; each row in the editor shows one full set.
+    private static final Material[][] GEAR_SETS = {
+        { Material.NETHERITE_HELMET, Material.NETHERITE_CHESTPLATE, Material.NETHERITE_LEGGINGS, Material.NETHERITE_BOOTS },
+        { Material.DIAMOND_HELMET,   Material.DIAMOND_CHESTPLATE,   Material.DIAMOND_LEGGINGS,   Material.DIAMOND_BOOTS   },
+        { Material.IRON_HELMET,      Material.IRON_CHESTPLATE,      Material.IRON_LEGGINGS,      Material.IRON_BOOTS      },
+        { Material.CHAINMAIL_HELMET, Material.CHAINMAIL_CHESTPLATE, Material.CHAINMAIL_LEGGINGS, Material.CHAINMAIL_BOOTS },
+        { Material.LEATHER_HELMET,   Material.LEATHER_CHESTPLATE,   Material.LEATHER_LEGGINGS,   Material.LEATHER_BOOTS   },
+    };
+    // First slot in each row for the above sets (4 items per set, gap in slot+4)
+    private static final int[] GEAR_ROW_START = { 0, 9, 18, 27, 36 };
 
     private static final List<Material> TOOL_OPTIONS = List.of(
             Material.WOODEN_SWORD, Material.STONE_SWORD, Material.IRON_SWORD, Material.DIAMOND_SWORD, Material.NETHERITE_SWORD,
@@ -127,12 +136,17 @@ public class KitEditorManager {
             handleEnchantClick(player, session, slot, clickType, clicked);
             return true;
         }
+        if (title.startsWith(TITLE_PREVIEW_PREFIX)) {
+            if (slot == 45) openMainMenu(player, session);
+            return true;
+        }
         return false;
     }
 
     private void openMainMenu(Player player, Session session) {
-        Inventory inv = Bukkit.createInventory(null, 27, TITLE_MAIN_PREFIX + session.displayName);
+        Inventory inv = Bukkit.createInventory(null, 36, TITLE_MAIN_PREFIX + session.displayName);
 
+        // Row 1 — editor sections
         inv.setItem(10, named(Material.DIAMOND_CHESTPLATE, "§bGear", List.of("§7Configure armor pieces")));
         inv.setItem(11, named(Material.DIAMOND_SWORD, "§bTools / Weapons", List.of("§7Configure weapons and tools")));
         inv.setItem(12, named(Material.CHEST, "§bCrates", List.of("§7Use exact crates from SimpleCrates")));
@@ -140,13 +154,18 @@ public class KitEditorManager {
         if (session.type == CreationType.GKIT) {
             inv.setItem(14, named(Material.BOOK, "§bMiscellaneous", List.of("§7Black scrolls & unopened custom books")));
         }
-
         inv.setItem(15, named(Material.EMERALD_BLOCK, "§aConfirm & Create", List.of(
                 "§7Name: §f" + session.displayName,
                 "§7Selected Items: §f" + session.selectedItems.size(),
                 "§7XP Bottle Value: §f" + session.xpBottleValue
         )));
         inv.setItem(16, named(Material.BARRIER, "§cCancel", List.of("§7Cancel this creation session")));
+
+        // Row 2 — preview
+        inv.setItem(22, named(Material.ENDER_EYE, "§ePreview Kit", List.of(
+                "§7View all selected items with",
+                "§7their enchants applied."
+        )));
 
         fill(inv, Material.GRAY_STAINED_GLASS_PANE);
         player.openInventory(inv);
@@ -155,9 +174,12 @@ public class KitEditorManager {
 
     private void openGearMenu(Player player, Session session) {
         Inventory inv = Bukkit.createInventory(null, 54, TITLE_GEAR_PREFIX + session.displayName);
-        int slot = 0;
-        for (Material material : GEAR_OPTIONS) {
-            inv.setItem(slot++, decoratedSelectable(session, material));
+        // Place each armour set on its own row: Helmet | Chestplate | Leggings | Boots
+        for (int s = 0; s < GEAR_SETS.length; s++) {
+            int start = GEAR_ROW_START[s];
+            for (int i = 0; i < GEAR_SETS[s].length; i++) {
+                inv.setItem(start + i, decoratedSelectable(session, GEAR_SETS[s][i]));
+            }
         }
         addBackDone(inv);
         player.openInventory(inv);
@@ -254,9 +276,7 @@ public class KitEditorManager {
             case 12 -> openCratesMenu(player, session);
             case 13 -> openXpMenu(player, session);
             case 14 -> {
-                if (session.type == CreationType.GKIT) {
-                    openMiscMenu(player, session);
-                }
+                if (session.type == CreationType.GKIT) openMiscMenu(player, session);
             }
             case 15 -> finalizeCreation(player, session);
             case 16 -> {
@@ -264,6 +284,7 @@ public class KitEditorManager {
                 player.closeInventory();
                 player.sendMessage("§cCreation cancelled.");
             }
+            case 22 -> openPreviewMenu(player, session);
             default -> {
             }
         }
@@ -277,7 +298,7 @@ public class KitEditorManager {
         if (clicked == null) return;
 
         Material material = clicked.getType();
-        if (material == Material.AIR || material.name().contains("GLASS") || material == Material.ARROW || material == Material.EMERALD) return;
+        if (material == Material.AIR || material.name().contains("GLASS") || material == Material.ARROW || material == Material.EMERALD || material == Material.BARRIER) return;
 
         if (clickType.isLeftClick()) {
             if (isArmor(material)) {
@@ -286,6 +307,13 @@ public class KitEditorManager {
             session.selectedItems.put(material.name(), baseItem(material, session.type == CreationType.GKIT));
             player.sendMessage("§aSelected §f" + readable(material));
             reopenCurrentSelectionMenu(player, session, sourceMenu);
+            return;
+        }
+
+        if (clickType == org.bukkit.event.inventory.ClickType.MIDDLE
+                || clickType == org.bukkit.event.inventory.ClickType.SHIFT_RIGHT) {
+            session.selectedItems.putIfAbsent(material.name(), baseItem(material, session.type == CreationType.GKIT));
+            openEnchantMenu(player, session, material, sourceMenu);
             return;
         }
 
@@ -298,10 +326,6 @@ public class KitEditorManager {
             return;
         }
 
-        if (clickType == org.bukkit.event.inventory.ClickType.MIDDLE) {
-            session.selectedItems.putIfAbsent(material.name(), baseItem(material, session.type == CreationType.GKIT));
-            openEnchantMenu(player, session, material, sourceMenu);
-        }
     }
 
     private void handleCratesClick(Player player, Session session, int slot, org.bukkit.event.inventory.ClickType clickType, ItemStack clicked) {
@@ -434,6 +458,7 @@ public class KitEditorManager {
                 kit.addItem(item);
             }
             rankKitManager.registerKit(kit);
+            saveCustomRankKit(kit);
             player.sendMessage("§aCreated kit §f" + session.displayName + "§a. Use §e/kit " + session.name + "§a.");
         } else {
             GKit gkit = new GKit(session.name, session.displayName, "§7Custom created gkit", 24);
@@ -441,11 +466,112 @@ public class KitEditorManager {
                 gkit.addItem(item);
             }
             kitManager.registerKit(gkit);
+            saveCustomGKit(gkit);
             player.sendMessage("§aCreated gkit §f" + session.displayName + "§a. Use §e/gkit " + session.name + "§a.");
         }
 
         sessions.remove(player.getUniqueId());
         player.closeInventory();
+    }
+
+    // ── Persistence ────────────────────────────────────────────────────────────
+
+    /** Load all custom kits/gkits saved by this editor from YAML files. */
+    public void loadSavedKits() {
+        loadSavedGKits();
+        loadSavedRankKits();
+    }
+
+    private void loadSavedGKits() {
+        File file = new File(plugin.getDataFolder(), "custom_gkits.yml");
+        if (!file.exists()) return;
+        YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
+        for (String key : config.getKeys(false)) {
+            ConfigurationSection sec = config.getConfigurationSection(key);
+            if (sec == null) continue;
+            String displayName = sec.getString("displayName", key);
+            String description  = sec.getString("description", "§7Custom created gkit");
+            int cooldown        = sec.getInt("cooldownHours", 24);
+            GKit gkit = new GKit(key, displayName, description, cooldown);
+            ConfigurationSection itemsSec = sec.getConfigurationSection("items");
+            if (itemsSec != null) {
+                for (String i : itemsSec.getKeys(false)) {
+                    ItemStack item = itemsSec.getItemStack(i);
+                    if (item != null) gkit.addItem(item);
+                }
+            }
+            kitManager.registerKit(gkit);
+        }
+        plugin.getLogger().info("Loaded " + config.getKeys(false).size() + " custom gkit(s).");
+    }
+
+    private void loadSavedRankKits() {
+        File file = new File(plugin.getDataFolder(), "custom_kits.yml");
+        if (!file.exists()) return;
+        YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
+        for (String key : config.getKeys(false)) {
+            ConfigurationSection sec = config.getConfigurationSection(key);
+            if (sec == null) continue;
+            String displayName = sec.getString("displayName", key);
+            String description  = sec.getString("description", "§7Custom created kit");
+            int cooldown        = sec.getInt("cooldownHours", 24);
+            String rankName     = sec.getString("requiredRank", "DEFAULT");
+            RankTier tier = RankTier.DEFAULT;
+            try { tier = RankTier.valueOf(rankName); } catch (Exception ignored) {}
+            RankKit kit = new RankKit(key, displayName, description, tier, cooldown);
+            ConfigurationSection itemsSec = sec.getConfigurationSection("items");
+            if (itemsSec != null) {
+                for (String i : itemsSec.getKeys(false)) {
+                    ItemStack item = itemsSec.getItemStack(i);
+                    if (item != null) kit.addItem(item);
+                }
+            }
+            rankKitManager.registerKit(kit);
+        }
+        plugin.getLogger().info("Loaded " + config.getKeys(false).size() + " custom kit(s).");
+    }
+
+    private void saveCustomGKit(GKit gkit) {
+        File file = new File(plugin.getDataFolder(), "custom_gkits.yml");
+        YamlConfiguration config = file.exists()
+                ? YamlConfiguration.loadConfiguration(file)
+                : new YamlConfiguration();
+        String path = gkit.getName();
+        config.set(path + ".displayName", gkit.getDisplayName());
+        config.set(path + ".description", gkit.getDescription());
+        config.set(path + ".cooldownHours", gkit.getCooldownHours());
+        ItemStack[] items = gkit.getItems();
+        for (int i = 0; i < items.length; i++) {
+            config.set(path + ".items." + i, items[i]);
+        }
+        plugin.getDataFolder().mkdirs();
+        try {
+            config.save(file);
+        } catch (IOException e) {
+            plugin.getLogger().warning("Failed to save custom gkit '" + gkit.getName() + "': " + e.getMessage());
+        }
+    }
+
+    private void saveCustomRankKit(RankKit kit) {
+        File file = new File(plugin.getDataFolder(), "custom_kits.yml");
+        YamlConfiguration config = file.exists()
+                ? YamlConfiguration.loadConfiguration(file)
+                : new YamlConfiguration();
+        String path = kit.getName();
+        config.set(path + ".displayName", kit.getDisplayName());
+        config.set(path + ".description", kit.getDescription());
+        config.set(path + ".cooldownHours", kit.getCooldownHours());
+        config.set(path + ".requiredRank", kit.getRequiredRank().name());
+        List<ItemStack> items = kit.getItems();
+        for (int i = 0; i < items.size(); i++) {
+            config.set(path + ".items." + i, items.get(i));
+        }
+        plugin.getDataFolder().mkdirs();
+        try {
+            config.save(file);
+        } catch (IOException e) {
+            plugin.getLogger().warning("Failed to save custom kit '" + kit.getName() + "': " + e.getMessage());
+        }
     }
 
     private void applyVanillaEnchants(Session session, String itemKey, ItemStack item) {
@@ -473,24 +599,43 @@ public class KitEditorManager {
     }
 
     private ItemStack decoratedSelectable(Session session, Material material) {
-        ItemStack item = new ItemStack(material);
-        ItemMeta meta = item.getItemMeta();
         boolean selected = session.selectedItems.containsKey(material.name());
-        meta.setDisplayName((selected ? "§a" : "§f") + readable(material));
-        List<String> lore = new ArrayList<>();
-        lore.add(selected ? "§aSelected" : "§7Not selected");
-        lore.add("§7Left click: Select");
-        lore.add("§7Right click: Unselect");
-        lore.add("§7Middle click: Configure enchants");
-        if (session.type == CreationType.GKIT && isArmor(material)) {
-            lore.add("§bGKit default: Prot V + Unbreaking III");
-        }
-        meta.setLore(lore);
+
+        ItemStack item;
         if (selected) {
-            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
-            item.addUnsafeEnchantment(Enchantment.DURABILITY, 1);
+            // Show the real item with all enchants applied so the admin can see exactly what players will receive
+            item = session.selectedItems.get(material.name()).clone();
+            applyVanillaEnchants(session, material.name(), item);
+            ItemMeta meta = item.getItemMeta();
+            meta.setDisplayName("§a" + readable(material));
+            List<String> lore = new ArrayList<>();
+            // List custom enchant selections in lore for gkits
+            if (session.type == CreationType.GKIT) {
+                Set<String> customs = session.customEnchantSelections.getOrDefault(material.name(), Collections.emptySet());
+                if (!customs.isEmpty()) {
+                    lore.add("§bCustom enchants:");
+                    for (String id : customs) lore.add("  §7• §b" + id);
+                }
+            }
+            lore.add("§7");
+            lore.add("§aSelected");
+            lore.add("§7RClick: Unselect  §7Shift+RClick: Enchants");
+            meta.setLore(lore);
+            item.setItemMeta(meta);
+        } else {
+            item = new ItemStack(material);
+            ItemMeta meta = item.getItemMeta();
+            meta.setDisplayName("§7" + readable(material));
+            List<String> lore = new ArrayList<>();
+            lore.add("§7Not selected");
+            lore.add("§7LClick: Select");
+            lore.add("§7Shift+RClick: Configure enchants");
+            if (session.type == CreationType.GKIT && isArmor(material)) {
+                lore.add("§bGKit default: Prot V + Unbreaking III");
+            }
+            meta.setLore(lore);
+            item.setItemMeta(meta);
         }
-        item.setItemMeta(meta);
         return item;
     }
 
@@ -749,6 +894,41 @@ public class KitEditorManager {
             case "MASTERY" -> 8;
             default -> 99;
         };
+    }
+
+    private void openPreviewMenu(Player player, Session session) {
+        Inventory inv = Bukkit.createInventory(null, 54, TITLE_PREVIEW_PREFIX + session.displayName);
+
+        List<ItemStack> items = new ArrayList<>();
+
+        for (Map.Entry<String, ItemStack> entry : session.selectedItems.entrySet()) {
+            ItemStack item = entry.getValue().clone();
+            applyVanillaEnchants(session, entry.getKey(), item);
+            // Annotate custom enchant selections in lore so they're visible
+            if (session.type == CreationType.GKIT) {
+                Set<String> customs = session.customEnchantSelections.getOrDefault(entry.getKey(), Collections.emptySet());
+                if (!customs.isEmpty()) {
+                    ItemMeta meta = item.getItemMeta();
+                    List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
+                    lore.add("§bCustom enchants:");
+                    for (String id : customs) lore.add("  §7• §b" + id);
+                    meta.setLore(lore);
+                    item.setItemMeta(meta);
+                }
+            }
+            items.add(item);
+        }
+        for (ItemStack extra : session.extraItems.values()) items.add(extra.clone());
+        if (session.xpBottleValue > 0) items.add(createCustomXpBottle(session.xpBottleValue));
+
+        for (int i = 0; i < Math.min(items.size(), 45); i++) {
+            inv.setItem(i, items.get(i));
+        }
+
+        inv.setItem(45, named(Material.ARROW, "§eBack", List.of("§7Return to main menu")));
+        fill(inv, Material.BLACK_STAINED_GLASS_PANE);
+        player.openInventory(inv);
+        session.menuState = MenuState.PREVIEW;
     }
 
     private void reopenCurrentSelectionMenu(Player player, Session session, MenuState source) {

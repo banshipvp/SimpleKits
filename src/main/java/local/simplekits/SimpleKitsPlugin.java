@@ -28,6 +28,8 @@ public class SimpleKitsPlugin extends JavaPlugin {
         // Load kits from config
         kitManager.loadKits();
         rankKitManager.loadDefaultKits();
+        // Load any custom kits/gkits created via the editor (survives restarts)
+        kitEditorManager.loadSavedKits();
 
         KitsCommand kitsCommand = new KitsCommand(rankKitManager);
 
