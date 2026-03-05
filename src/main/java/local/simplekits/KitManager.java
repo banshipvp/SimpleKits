@@ -270,8 +270,16 @@ public class KitManager {
                 
                 // Get enchantment methods via reflection
                 var getEnchantmentMethod = enchantManager.getClass().getMethod("getEnchantment", String.class);
-                var applyEnchantmentMethod = enchantManager.getClass().getMethod("applyEnchantment", ItemStack.class, Object.class, int.class);
-                
+                // Scan for applyEnchantment by name+arity to avoid exact-type mismatch
+                java.lang.reflect.Method applyEnchantmentMethod = null;
+                for (java.lang.reflect.Method m : enchantManager.getClass().getMethods()) {
+                    if (m.getName().equals("applyEnchantment") && m.getParameterCount() == 3) {
+                        applyEnchantmentMethod = m;
+                        break;
+                    }
+                }
+                if (applyEnchantmentMethod == null) throw new NoSuchMethodException("applyEnchantment(3 params)");
+
                 // Apply AutoSmelt III
                 var autoSmelt = getEnchantmentMethod.invoke(enchantManager, "autosmelt");
                 if (autoSmelt != null) {
