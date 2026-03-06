@@ -19,15 +19,22 @@ commands:
     description: Create a custom gkit via GUI
     usage: /gkitcreate [name]
     permission: simplekits.admin
+  gkitedit:
+    description: Edit an existing gkit via GUI
+    usage: /gkitedit <name>
+    permission: simplekits.admin
   gkitroll:
     description: Roll and receive a gkit instantly
     usage: /gkitroll <name>
+    permission: simplekits.gkitroll
   gkitgem:
     description: Give gkit gems
     usage: /gkitgem give <player> <kit|random> [amount]
+    permission: simplekits.admin
   gkitlock:
     description: Lock gkits for players
     usage: /gkitlock <all|player <name>>
+    permission: simplekits.admin
   gkitunlock:
     description: Unlock gkits for players (admin)
     usage: /gkitunlock <player <name> <kit|all>|all <kit>>
@@ -46,3 +53,15 @@ commands:
     description: Delete a kit or gkit
     usage: /kitdelete <name>|kit <name>|gkit <name>
     permission: simplekits.admin
+  gkitdelete:
+    description: Delete a gkit
+    usage: /gkitdelete <name>|gkit <name>
+    permission: simplekits.admin
+
+permissions:
+  simplekits.admin:
+    description: Admin access to SimpleKits management commands
+    default: op
+  simplekits.gkitroll:
+    description: Allows using /gkitroll
+    default: false

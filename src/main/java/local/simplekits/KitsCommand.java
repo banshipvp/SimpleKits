@@ -16,15 +16,40 @@ import java.util.List;
 public class KitsCommand implements CommandExecutor {
 
     private final RankKitManager rankKitManager;
+    private final KitEditorManager kitEditorManager;
 
-    public KitsCommand(RankKitManager rankKitManager) {
+    public KitsCommand(RankKitManager rankKitManager, KitEditorManager kitEditorManager) {
         this.rankKitManager = rankKitManager;
+        this.kitEditorManager = kitEditorManager;
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player player)) {
             sender.sendMessage("§cThis command can only be used by players.");
+            return true;
+        }
+
+        if (args.length >= 1) {
+            if (args[0].equalsIgnoreCase("create")) {
+                if (!player.hasPermission("simplekits.admin")) {
+                    player.sendMessage("§cYou do not have permission to create kits.");
+                    return true;
+                }
+                if (args.length >= 2) {
+                    StringBuilder name = new StringBuilder();
+                    for (int i = 1; i < args.length; i++) {
+                        if (i > 1) name.append(' ');
+                        name.append(args[i]);
+                    }
+                    kitEditorManager.startEditor(player, KitEditorManager.CreationType.KIT, name.toString());
+                } else {
+                    kitEditorManager.promptForName(player, KitEditorManager.CreationType.KIT);
+                }
+                return true;
+            }
+
+            claimByName(player, args[0]);
             return true;
         }
 
@@ -71,5 +96,28 @@ public class KitsCommand implements CommandExecutor {
         meta.setLore(lore);
         item.setItemMeta(meta);
         return item;
+    }
+
+    private void claimByName(Player player, String kitArg) {
+        String kitName = kitArg.toLowerCase();
+        RankKit kit = rankKitManager.getKit(kitName);
+        if (kit == null) {
+            player.sendMessage("§cKit not found: " + kitArg);
+            return;
+        }
+
+        if (!rankKitManager.hasAccess(player, kit)) {
+            player.sendMessage("§cYou need rank " + kit.getRequiredRank().getDisplayName() + "§c for this kit.");
+            return;
+        }
+
+        if (!rankKitManager.canClaim(player, kit)) {
+            player.sendMessage("§cKit on cooldown for §6" + rankKitManager.getRemainingHours(player, kit) + "h§c.");
+            return;
+        }
+
+        if (rankKitManager.claim(player, kit)) {
+            player.sendMessage("§aClaimed " + kit.getDisplayName());
+        }
     }
 }

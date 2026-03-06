@@ -22,6 +22,8 @@ public class KitManager {
     private final Map<String, Long> kitCooldowns = new HashMap<>();
     
     private static final long COOLDOWN_MS = TimeUnit.HOURS.toMillis(24);  // 24 hour cooldown
+    private static final Map<String, String> ENCHANT_ID_ALIASES = createEnchantAliasMap();
+    private final Set<String> missingEnchantWarnings = new HashSet<>();
     
     public KitManager(JavaPlugin plugin) {
         this.plugin = plugin;
@@ -53,6 +55,7 @@ public class KitManager {
         starter.addItem(new ItemStack(Material.OBSIDIAN, 32));
         starter.addItem(new ItemStack(Material.TNT, 32));
         starter.addItem(new ItemStack(Material.BREAD, 64));
+        applyKitSpecificBaselineEnchants(starter);
         kits.put("starter", starter);
         
         // gkit 2: Fire Guardian
@@ -64,6 +67,7 @@ public class KitManager {
         fire.addItem(createEnchantedBoots("§cMolten Boots", Material.DIAMOND_BOOTS));
         fire.addItem(new ItemStack(Material.SHIELD));
         fire.addItem(new ItemStack(Material.GOLDEN_APPLE, 16));
+        applyKitSpecificBaselineEnchants(fire);
         kits.put("fire", fire);
         
         // gkit 3: Ice Warrior
@@ -75,6 +79,7 @@ public class KitManager {
         ice.addItem(createEnchantedBoots("§bFrozen Boots", Material.DIAMOND_BOOTS));
         ice.addItem(new ItemStack(Material.SHIELD));
         ice.addItem(new ItemStack(Material.GOLDEN_APPLE, 16));
+        applyKitSpecificBaselineEnchants(ice);
         kits.put("ice", ice);
         
         // gkit 4: Miner's Fortune
@@ -88,6 +93,7 @@ public class KitManager {
         miner.addItem(createEnchantedSword("§6Miner Sword", Material.DIAMOND_SWORD));
         miner.addItem(new ItemStack(Material.TORCH, 64));
         miner.addItem(new ItemStack(Material.GOLDEN_APPLE, 8));
+        applyKitSpecificBaselineEnchants(miner);
         kits.put("miner", miner);
         
         // gkit 5: Vampire's Kiss
@@ -99,6 +105,7 @@ public class KitManager {
         vampire.addItem(createEnchantedBoots("§4Dark Boots", Material.DIAMOND_BOOTS));
         vampire.addItem(new ItemStack(Material.SHIELD));
         vampire.addItem(new ItemStack(Material.GOLDEN_APPLE, 16));
+        applyKitSpecificBaselineEnchants(vampire);
         kits.put("vampire", vampire);
         
         // gkit 6: Thunder Lord
@@ -111,6 +118,7 @@ public class KitManager {
         thunder.addItem(createEnchantedBow("§eVoltage Bow", Material.BOW));
         thunder.addItem(new ItemStack(Material.ARROW, 64));
         thunder.addItem(new ItemStack(Material.GOLDEN_APPLE, 16));
+        applyKitSpecificBaselineEnchants(thunder);
         kits.put("thunder", thunder);
         
         // gkit 7: Assassin's Edge
@@ -122,6 +130,7 @@ public class KitManager {
         assassin.addItem(createEnchantedBoots("§8Shadow Boots", Material.NETHERITE_BOOTS));
         assassin.addItem(new ItemStack(Material.SHIELD));
         assassin.addItem(new ItemStack(Material.GOLDEN_APPLE, 16));
+        applyKitSpecificBaselineEnchants(assassin);
         kits.put("assassin", assassin);
         
         // gkit 8: Tank's Fortress
@@ -133,6 +142,7 @@ public class KitManager {
         tank.addItem(createEnchantedBoots("§7Tanky Boots", Material.NETHERITE_BOOTS));
         tank.addItem(new ItemStack(Material.SHIELD));
         tank.addItem(new ItemStack(Material.ENCHANTED_GOLDEN_APPLE, 8));
+        applyKitSpecificBaselineEnchants(tank);
         kits.put("tank", tank);
         
         // gkit 9: Archer's Precision
@@ -145,6 +155,7 @@ public class KitManager {
         archer.addItem(createEnchantedBow("§aExplosive Bow", Material.BOW));
         archer.addItem(new ItemStack(Material.ARROW, 128));
         archer.addItem(new ItemStack(Material.GOLDEN_APPLE, 16));
+        applyKitSpecificBaselineEnchants(archer);
         kits.put("archer", archer);
         
         // gkit 10: Royalty Kit
@@ -157,6 +168,7 @@ public class KitManager {
         royalty.addItem(new ItemStack(Material.SHIELD));
         royalty.addItem(new ItemStack(Material.ENCHANTED_GOLDEN_APPLE, 16));
         royalty.addItem(new ItemStack(Material.TOTEM_OF_UNDYING, 1));
+        applyKitSpecificBaselineEnchants(royalty);
         kits.put("royalty", royalty);
         
         // gkit 11: Raider Kit - Cannon and base materials
@@ -175,6 +187,7 @@ public class KitManager {
         raider.addItem(new ItemStack(Material.WATER_BUCKET, 1));
         raider.addItem(new ItemStack(Material.REDSTONE, 64));
         raider.addItem(new ItemStack(Material.GOLDEN_APPLE, 16));
+        applyKitSpecificBaselineEnchants(raider);
         kits.put("raider", raider);
     }
     
@@ -229,7 +242,7 @@ public class KitManager {
         pick.addUnsafeEnchantment(Enchantment.LOOT_BONUS_BLOCKS, 3);
         pick.addUnsafeEnchantment(Enchantment.DURABILITY, 3);
         
-        // Apply 4-6 random custom enchants if FactionEnchants plugin is available
+        // Apply 4-9 random custom enchants if FactionEnchants plugin is available
         try {
             var factionEnchantsPlugin = plugin.getServer().getPluginManager().getPlugin("FactionEnchants");
             if (factionEnchantsPlugin != null) {
@@ -237,13 +250,17 @@ public class KitManager {
                 var randomGearManager = getRandomGearManagerMethod.invoke(factionEnchantsPlugin);
                 
                 var generateMethod = randomGearManager.getClass().getMethod("generateRandomEnchantedGear", ItemStack.class, int.class, int.class);
-                pick = (ItemStack) generateMethod.invoke(randomGearManager, pick, 4, 6);
+                pick = (ItemStack) generateMethod.invoke(randomGearManager, pick, 4, 9);
             }
         } catch (Exception e) {
             plugin.getLogger().warning("Could not apply random custom enchants to pickaxe: " + e.getMessage());
         }
-        
-        return pick;
+
+        return applyGuaranteedEnchants(pick,
+                "detonate",
+                "autosmelt",
+                "telepathy",
+                "reforged");
     }
     
     /**
@@ -297,12 +314,22 @@ public class KitManager {
                 if (telepathy != null) {
                     pick = (ItemStack) applyEnchantmentMethod.invoke(enchantManager, pick, telepathy, 3);
                 }
+
+                // Apply Reforged III
+                var reforged = getEnchantmentMethod.invoke(enchantManager, "reforged");
+                if (reforged != null) {
+                    pick = (ItemStack) applyEnchantmentMethod.invoke(enchantManager, pick, reforged, 3);
+                }
             }
         } catch (Exception e) {
             plugin.getLogger().warning("Could not apply custom enchants to raider pickaxe: " + e.getMessage());
         }
-        
-        return pick;
+
+        return applyGuaranteedEnchants(pick,
+                "detonate",
+                "autosmelt",
+                "telepathy",
+                "reforged");
     }
     
     /**
@@ -364,6 +391,16 @@ public class KitManager {
             plugin.getLogger().warning("Could not apply random custom enchants to armor: " + e.getMessage());
         }
         
+        if (material.name().contains("CHESTPLATE")) {
+            armor = applyGuaranteedEnchants(armor, "overload", "aegis", "diminish");
+        } else if (material.name().contains("LEGGINGS")) {
+            armor = applyGuaranteedEnchants(armor,
+                    "clarity",
+                    "obsidianshield|obishield",
+                    "voodoo",
+                    "cactus");
+        }
+
         return armor;
     }
 
@@ -374,7 +411,7 @@ public class KitManager {
 
     private ItemStack createEnchantedBoots(String name, Material material) {
         ItemStack armor = createEnchantedArmor(name, material);
-        return applyGuaranteedEnchants(armor, "gears", "springs");
+        return applyGuaranteedEnchants(armor, "gears", "springs", "rocketescape|rocket_escape");
     }
 
     private ItemStack createStarterArmor(String name, Material material) {
@@ -386,7 +423,7 @@ public class KitManager {
         armor.addUnsafeEnchantment(Enchantment.PROTECTION_ENVIRONMENTAL, 2);
         armor.addUnsafeEnchantment(Enchantment.DURABILITY, 2);
         
-        // Apply 2-4 random custom enchants for starter kit
+        // Apply 4-9 random custom enchants for starter kit
         try {
             var factionEnchantsPlugin = plugin.getServer().getPluginManager().getPlugin("FactionEnchants");
             if (factionEnchantsPlugin != null) {
@@ -394,10 +431,20 @@ public class KitManager {
                 var randomGearManager = getRandomGearManagerMethod.invoke(factionEnchantsPlugin);
                 
                 var generateMethod = randomGearManager.getClass().getMethod("generateRandomEnchantedGear", ItemStack.class, int.class, int.class);
-                armor = (ItemStack) generateMethod.invoke(randomGearManager, armor, 2, 4);
+                armor = (ItemStack) generateMethod.invoke(randomGearManager, armor, 4, 9);
             }
         } catch (Exception e) {
             plugin.getLogger().warning("Could not apply random custom enchants to starter armor: " + e.getMessage());
+        }
+
+        if (material.name().contains("CHESTPLATE")) {
+            armor = applyGuaranteedEnchants(armor, "overload", "aegis", "diminish");
+        } else if (material.name().contains("LEGGINGS")) {
+            armor = applyGuaranteedEnchants(armor,
+                    "clarity",
+                    "obsidianshield|obishield",
+                    "voodoo",
+                    "cactus");
         }
 
         return armor;
@@ -410,7 +457,7 @@ public class KitManager {
 
     private ItemStack createStarterBoots(String name, Material material) {
         ItemStack armor = createStarterArmor(name, material);
-        return applyGuaranteedEnchants(armor, "gears", "springs");
+        return applyGuaranteedEnchants(armor, "gears", "springs", "rocketescape|rocket_escape");
     }
 
     private ItemStack createStarterSword(String name, Material material) {
@@ -422,7 +469,7 @@ public class KitManager {
         sword.addUnsafeEnchantment(Enchantment.DAMAGE_ALL, 2);
         sword.addUnsafeEnchantment(Enchantment.DURABILITY, 2);
         
-        // Apply 2-4 random custom enchants for starter kit
+        // Apply 4-9 random custom enchants for starter kit
         try {
             var factionEnchantsPlugin = plugin.getServer().getPluginManager().getPlugin("FactionEnchants");
             if (factionEnchantsPlugin != null) {
@@ -430,7 +477,7 @@ public class KitManager {
                 var randomGearManager = getRandomGearManagerMethod.invoke(factionEnchantsPlugin);
                 
                 var generateMethod = randomGearManager.getClass().getMethod("generateRandomEnchantedGear", ItemStack.class, int.class, int.class);
-                sword = (ItemStack) generateMethod.invoke(randomGearManager, sword, 2, 4);
+                sword = (ItemStack) generateMethod.invoke(randomGearManager, sword, 4, 9);
             }
         } catch (Exception e) {
             plugin.getLogger().warning("Could not apply random custom enchants to starter sword: " + e.getMessage());
@@ -467,12 +514,65 @@ public class KitManager {
                 plugin.getLogger().warning("[SimpleKits] Could not find EnchantmentManager methods via reflection.");
                 return item;
             }
+
+            Map<String, Object> enchById = new HashMap<>();
+            Map<String, Object> enchByDisplay = new HashMap<>();
+            try {
+                java.lang.reflect.Method getAll = enchantMgr.getClass().getMethod("getAllEnchantments");
+                Object allRaw = getAll.invoke(enchantMgr);
+                if (allRaw instanceof Collection<?> all) {
+                    for (Object enchObj : all) {
+                        if (enchObj == null) continue;
+                        try {
+                            Object idRaw = enchObj.getClass().getMethod("getId").invoke(enchObj);
+                            if (idRaw != null) {
+                                String id = String.valueOf(idRaw).trim().toLowerCase(Locale.ROOT);
+                                if (!id.isBlank()) {
+                                    enchById.put(id, enchObj);
+                                    enchById.put(normalizeEnchantLookup(id), enchObj);
+                                }
+                            }
+                        } catch (Exception ignored) {
+                        }
+                        try {
+                            Object displayRaw = enchObj.getClass().getMethod("getDisplayName").invoke(enchObj);
+                            if (displayRaw != null) {
+                                String display = String.valueOf(displayRaw).trim().toLowerCase(Locale.ROOT);
+                                if (!display.isBlank()) {
+                                    enchByDisplay.put(normalizeEnchantLookup(display), enchObj);
+                                }
+                            }
+                        } catch (Exception ignored) {
+                        }
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+
             for (String enchantName : enchantNames) {
-                Object ench = getEnch.invoke(enchantMgr, enchantName);
+                String[] aliases = enchantName.split("\\|");
+                Object ench = null;
+                for (String alias : aliases) {
+                    String cleaned = alias.trim().toLowerCase(Locale.ROOT);
+                    if (cleaned.isEmpty()) continue;
+
+                    String resolvedId = resolveEnchantId(cleaned);
+                    ench = enchById.get(resolvedId);
+                    if (ench == null) ench = enchById.get(normalizeEnchantLookup(resolvedId));
+                    if (ench == null) ench = enchByDisplay.get(normalizeEnchantLookup(resolvedId));
+
+                    if (ench == null) {
+                        Object reflective = getEnch.invoke(enchantMgr, resolvedId);
+                        if (reflective != null) ench = reflective;
+                    }
+                    if (ench != null) break;
+                }
                 if (ench != null) {
                     item = (ItemStack) applyEnch.invoke(enchantMgr, item, ench, 3);
                 } else {
-                    plugin.getLogger().warning("[SimpleKits] Enchant not found: " + enchantName);
+                    if (missingEnchantWarnings.add(enchantName.toLowerCase(Locale.ROOT))) {
+                        plugin.getLogger().warning("[SimpleKits] Enchant not found in FactionEnchants: " + enchantName);
+                    }
                 }
             }
         } catch (Exception e) {
@@ -480,6 +580,34 @@ public class KitManager {
             e.printStackTrace();
         }
         return item;
+    }
+
+    private static Map<String, String> createEnchantAliasMap() {
+        Map<String, String> aliases = new HashMap<>();
+        aliases.put("enlightened", "enlighted");
+        aliases.put("iceaspect", "ice_aspect");
+        aliases.put("inferno", "incinerate");
+        aliases.put("freeze", "ice_aspect");
+        aliases.put("frenzy", "enrage");
+        aliases.put("aegis", "angelic");
+        aliases.put("fortify", "armored");
+        aliases.put("rocketescape", "rocket_escape");
+        aliases.put("obishield", "obsidianshield");
+        return aliases;
+    }
+
+    private String resolveEnchantId(String input) {
+        return ENCHANT_ID_ALIASES.getOrDefault(input, input);
+    }
+
+    private String normalizeEnchantLookup(String value) {
+        if (value == null) return "";
+        return value.toLowerCase(Locale.ROOT)
+                .replace("§", "")
+                .replace("_", "")
+                .replace("-", "")
+                .replace(" ", "")
+                .replaceAll("[^a-z0-9]", "");
     }
 
     private ItemStack createEnchantedShovel(String name, Material material) {
@@ -494,12 +622,72 @@ public class KitManager {
             if (fe != null) {
                 var rgm = fe.getClass().getMethod("getRandomGearManager").invoke(fe);
                 var gen = rgm.getClass().getMethod("generateRandomEnchantedGear", ItemStack.class, int.class, int.class);
-                shovel = (ItemStack) gen.invoke(rgm, shovel, 3, 5);
+                shovel = (ItemStack) gen.invoke(rgm, shovel, 4, 9);
             }
         } catch (Exception e) {
             plugin.getLogger().warning("Could not apply custom enchants to shovel: " + e.getMessage());
         }
-        return applyGuaranteedEnchants(shovel, "detonate");
+        return applyGuaranteedEnchants(shovel,
+                "detonate",
+                "autosmelt",
+                "telepathy",
+                "reforged");
+    }
+
+    private void applyKitSpecificBaselineEnchants(GKit kit) {
+        String key = kit.getName().toLowerCase(Locale.ROOT);
+        ItemStack[] items = kit.getItems();
+        for (int i = 0; i < items.length; i++) {
+            ItemStack item = items[i];
+            if (item == null || item.getType() == Material.AIR) continue;
+
+            Material material = item.getType();
+            if (material.name().contains("HELMET")) {
+                item = applyGuaranteedEnchants(item, "drunk", "implants");
+            } else if (material.name().contains("CHESTPLATE")) {
+                item = applyGuaranteedEnchants(item, "overload", "aegis", "diminish");
+            } else if (material.name().contains("LEGGINGS")) {
+                item = applyGuaranteedEnchants(item,
+                        "clarity",
+                        "obsidianshield|obishield",
+                        "voodoo",
+                        "cactus");
+            } else if (material.name().contains("BOOTS")) {
+                item = applyGuaranteedEnchants(item, "gears", "springs", "rocketescape|rocket_escape");
+            } else if (material.name().contains("SWORD")) {
+                item = applyGuaranteedEnchants(item, "rage", "silence", "lifesteal");
+            } else if (material.name().contains("PICKAXE") || material.name().contains("SHOVEL")) {
+                item = applyGuaranteedEnchants(item, "detonate", "autosmelt", "telepathy", "reforged");
+            }
+
+            if (material.name().contains("SWORD")) {
+                item = switch (key) {
+                    case "fire" -> applyGuaranteedEnchants(item, "inferno");
+                    case "ice" -> applyGuaranteedEnchants(item, "freeze");
+                    case "vampire" -> applyGuaranteedEnchants(item, "bleed");
+                    case "thunder" -> applyGuaranteedEnchants(item, "lightning");
+                    case "assassin" -> applyGuaranteedEnchants(item, "execute");
+                    case "tank" -> applyGuaranteedEnchants(item, "guardians");
+                    case "royalty" -> applyGuaranteedEnchants(item, "enlightened");
+                    case "raider" -> applyGuaranteedEnchants(item, "frenzy");
+                    default -> item;
+                };
+            }
+
+            if (material.name().contains("CHESTPLATE") || material.name().contains("LEGGINGS")) {
+                item = switch (key) {
+                    case "fire" -> applyGuaranteedEnchants(item, "molten");
+                    case "ice" -> applyGuaranteedEnchants(item, "iceaspect");
+                    case "miner" -> applyGuaranteedEnchants(item, "hardened");
+                    case "thunder" -> applyGuaranteedEnchants(item, "stormcaller");
+                    case "tank" -> applyGuaranteedEnchants(item, "fortify");
+                    case "royalty" -> applyGuaranteedEnchants(item, "enlightened");
+                    default -> item;
+                };
+            }
+
+            items[i] = item;
+        }
     }
 
     private ItemStack createNamedItem(String name, Material material, int amount) {

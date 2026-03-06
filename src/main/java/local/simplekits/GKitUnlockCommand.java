@@ -132,6 +132,10 @@ public class GKitUnlockCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String label, String[] args) {
+        if (!sender.isOp() && !sender.hasPermission("simplekits.admin")) {
+            return List.of();
+        }
+
         if (args.length == 1) {
             return List.of("player", "all");
         }

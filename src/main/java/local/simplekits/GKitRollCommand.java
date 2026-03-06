@@ -22,6 +22,11 @@ public class GKitRollCommand implements CommandExecutor {
             return true;
         }
 
+        if (!canUseRoll(player)) {
+            player.sendMessage("§cYou do not have permission to use /gkitroll.");
+            return true;
+        }
+
         if (args.length == 0) {
             player.sendMessage("§cUsage: /gkitroll <name>");
             return true;
@@ -55,5 +60,14 @@ public class GKitRollCommand implements CommandExecutor {
 
         player.sendMessage("§aRolled gkit: §f" + kit.getDisplayName());
         return true;
+    }
+
+    private boolean canUseRoll(Player player) {
+        return player.hasPermission("simplekits.gkitroll")
+                || player.hasPermission("simplekits.admin")
+                || player.hasPermission("group.owner")
+                || player.hasPermission("group.admin")
+                || player.hasPermission("group.dev")
+                || player.isOp();
     }
 }

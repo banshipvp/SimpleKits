@@ -4,6 +4,9 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.Bukkit;
+import org.bukkit.Material;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
 /**
@@ -21,8 +24,20 @@ public class GKitGuiListener implements Listener {
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
+        String title = event.getView().getTitle();
+        if (title != null && title.startsWith("§8GKit Preview:")) {
+            event.setCancelled(true);
+            if (!(event.getWhoClicked() instanceof Player player)) return;
+            if (event.getCurrentItem() == null || !event.getCurrentItem().hasItemMeta()) return;
+            String name = event.getCurrentItem().getItemMeta().getDisplayName();
+            if (name != null && name.contains("Back to GKits")) {
+                player.performCommand("gkits");
+            }
+            return;
+        }
+
         // Check if this is a gkits GUI
-        if (event.getView().getTitle() == null || !event.getView().getTitle().contains("GKits")) {
+        if (title == null || !title.contains("GKits")) {
             return;
         }
         
@@ -40,10 +55,38 @@ public class GKitGuiListener implements Listener {
         // Find which kit was clicked
         for (GKit kit : kitManager.getAllKits()) {
             if (displayName.contains(kit.getDisplayName())) {
-                handleKitSelection(player, kit);
+                if (event.getClick().isRightClick()) {
+                    openKitPreview(player, kit);
+                } else {
+                    handleKitSelection(player, kit);
+                }
                 break;
             }
         }
+    }
+
+    private void openKitPreview(Player player, GKit kit) {
+        Inventory preview = Bukkit.createInventory(null, 54, "§8GKit Preview: " + kit.getDisplayName());
+        java.util.List<ItemStack> items = gemManager.createPreviewSet(kit);
+
+        int slot = 0;
+        for (ItemStack item : items) {
+            if (item == null || item.getType() == Material.AIR) continue;
+            if (slot >= 45) break;
+            preview.setItem(slot++, item.clone());
+        }
+
+        preview.setItem(49, named(Material.ARROW, "§eBack to GKits", java.util.List.of("§7Return to the GKits menu")));
+        player.openInventory(preview);
+    }
+
+    private ItemStack named(Material material, String name, java.util.List<String> lore) {
+        ItemStack item = new ItemStack(material);
+        var meta = item.getItemMeta();
+        meta.setDisplayName(name);
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        return item;
     }
     
     /**

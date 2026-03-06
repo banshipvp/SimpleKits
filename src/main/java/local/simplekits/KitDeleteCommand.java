@@ -21,6 +21,29 @@ public class KitDeleteCommand implements CommandExecutor {
             return true;
         }
 
+        String cmdName = command.getName().toLowerCase();
+
+        if (cmdName.equals("gkitdelete")) {
+            if (args.length == 0) {
+                sender.sendMessage("§cUsage: /gkitdelete <name>");
+                sender.sendMessage("§cUsage: /gkitdelete gkit <name>");
+                return true;
+            }
+
+            String name = args.length == 1 ? args[0].toLowerCase() : args[1].toLowerCase();
+            if (args.length >= 2 && !args[0].equalsIgnoreCase("gkit")) {
+                sender.sendMessage("§cFirst argument must be 'gkit'.");
+                return true;
+            }
+
+            if (kitManager.unregisterKit(name)) {
+                sender.sendMessage("§aDeleted gkit §f" + name);
+            } else {
+                sender.sendMessage("§cGKit not found: " + name);
+            }
+            return true;
+        }
+
         if (args.length == 0) {
             sender.sendMessage("§cUsage: /kitdelete <name>");
             sender.sendMessage("§cUsage: /kitdelete kit <name>");

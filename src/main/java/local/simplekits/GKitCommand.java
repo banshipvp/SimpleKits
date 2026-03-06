@@ -13,11 +13,13 @@ public class GKitCommand implements CommandExecutor {
     private final KitManager kitManager;
     private final GKitGemManager gemManager;
     private final KitEditorManager editorManager;
+    private final GKitsCommand gKitsCommand;
 
-    public GKitCommand(KitManager kitManager, GKitGemManager gemManager, KitEditorManager editorManager) {
+    public GKitCommand(KitManager kitManager, GKitGemManager gemManager, KitEditorManager editorManager, GKitsCommand gKitsCommand) {
         this.kitManager = kitManager;
         this.gemManager = gemManager;
         this.editorManager = editorManager;
+        this.gKitsCommand = gKitsCommand;
     }
 
     @Override
@@ -43,12 +45,7 @@ public class GKitCommand implements CommandExecutor {
         }
 
         if (args.length == 0) {
-            player.sendMessage("§c/gkit <kitname>");
-            player.sendMessage("§c/gkit create [name]");
-            player.sendMessage("§7Available kits:");
-            for (GKit kit : kitManager.getAllKits()) {
-                player.sendMessage("§7  • §6" + kit.getName());
-            }
+            gKitsCommand.openKitsGui(player);
             return true;
         }
 
@@ -75,8 +72,10 @@ public class GKitCommand implements CommandExecutor {
             return true;
         }
 
-        // Claim the kit
-        gemManager.unlockKit(player, kitName);
+        boolean ok = gemManager.giveKitItems(player, kit, !player.hasPermission("simplekits.admin"));
+        if (!ok) {
+            player.sendMessage("§cCould not claim this gkit (check inventory space).");
+        }
         return true;
     }
 

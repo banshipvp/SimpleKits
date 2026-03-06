@@ -20,10 +20,12 @@ public class GKitsCommand implements CommandExecutor {
 
     private final SimpleKitsPlugin plugin;
     private final KitManager kitManager;
+    private final KitEditorManager editorManager;
 
-    public GKitsCommand(SimpleKitsPlugin plugin, KitManager kitManager) {
+    public GKitsCommand(SimpleKitsPlugin plugin, KitManager kitManager, KitEditorManager editorManager) {
         this.plugin = plugin;
         this.kitManager = kitManager;
+        this.editorManager = editorManager;
     }
 
     @Override
@@ -34,6 +36,30 @@ public class GKitsCommand implements CommandExecutor {
         }
 
         Player player = (Player) sender;
+
+        if (args.length >= 1) {
+            if (args[0].equalsIgnoreCase("create")) {
+                if (!player.hasPermission("simplekits.admin")) {
+                    player.sendMessage("§cYou do not have permission to create gkits.");
+                    return true;
+                }
+                if (args.length >= 2) {
+                    StringBuilder name = new StringBuilder();
+                    for (int i = 1; i < args.length; i++) {
+                        if (i > 1) name.append(' ');
+                        name.append(args[i]);
+                    }
+                    editorManager.startEditor(player, KitEditorManager.CreationType.GKIT, name.toString());
+                } else {
+                    editorManager.promptForName(player, KitEditorManager.CreationType.GKIT);
+                }
+                return true;
+            }
+
+            claimByName(player, args[0]);
+            return true;
+        }
+
         openKitsGui(player);
         return true;
     }
@@ -41,7 +67,7 @@ public class GKitsCommand implements CommandExecutor {
     /**
      * Open the gkits GUI inventory
      */
-    private void openKitsGui(Player player) {
+    public void openKitsGui(Player player) {
         int kitCount = kitManager.getKitCount();
         int rows = (int) Math.ceil(kitCount / 9.0);
         int inventorySize = rows * 9;
@@ -91,12 +117,14 @@ public class GKitsCommand implements CommandExecutor {
             lore.add("§cKit Locked");
             lore.add("§7Use a matching §bGKit Gem §7to unlock.");
         } else if (canClaim) {
-            lore.add("§aClick to claim kit");
+            lore.add("§aLeft-click to claim kit");
+            lore.add("§eRight-click to preview");
             lore.add("§aCooldown: §a1 day§a");
         } else {
             int remainingHours = kitManager.getRemainingCooldownHours(player.getUniqueId(), kit.getName());
             lore.add("§cNext available in:");
             lore.add("§c" + remainingHours + " hours");
+            lore.add("§eRight-click to preview");
         }
         
         lore.add("§7");
@@ -106,5 +134,31 @@ public class GKitsCommand implements CommandExecutor {
         display.setItemMeta(meta);
 
         return display;
+    }
+
+    private void claimByName(Player player, String rawKitName) {
+        String kitName = rawKitName.toLowerCase();
+        GKit kit = kitManager.getKit(kitName);
+        if (kit == null) {
+            player.sendMessage("§cKit not found: " + rawKitName);
+            return;
+        }
+
+        if (!player.hasPermission("simplekits.admin") && !plugin.getGKitGemManager().hasUnlockedKit(player.getUniqueId(), kitName)) {
+            player.sendMessage("§c§lKit Locked!");
+            player.sendMessage("§7You must use a §b" + kit.getDisplayName() + " Gem §7to unlock this kit first.");
+            return;
+        }
+
+        if (!kitManager.canClaimKit(player.getUniqueId(), kitName)) {
+            int remainingHours = kitManager.getRemainingCooldownHours(player.getUniqueId(), kitName);
+            player.sendMessage("§cKit is on cooldown for §6" + remainingHours + " more hours§c.");
+            return;
+        }
+
+        boolean ok = plugin.getGKitGemManager().giveKitItems(player, kit, !player.hasPermission("simplekits.admin"));
+        if (!ok) {
+            player.sendMessage("§cCould not claim this gkit (check inventory space).");
+        }
     }
 }

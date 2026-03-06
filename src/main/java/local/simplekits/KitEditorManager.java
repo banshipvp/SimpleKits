@@ -104,6 +104,30 @@ public class KitEditorManager {
         openMainMenu(player, session);
     }
 
+    public void startEditGKit(Player player, String rawName) {
+        String keyName = strip(color(rawName == null ? "" : rawName.trim()))
+                .toLowerCase(Locale.ROOT)
+                .replace(" ", "_");
+        if (keyName.isEmpty()) {
+            player.sendMessage("§cName cannot be empty.");
+            return;
+        }
+
+        GKit existing = kitManager.getKit(keyName);
+        if (existing == null) {
+            player.sendMessage("§cGKit not found: §f" + rawName);
+            return;
+        }
+
+        Session session = new Session(CreationType.GKIT, existing.getName(), existing.getDisplayName());
+        session.editingExisting = true;
+        session.originalName = existing.getName();
+        loadSessionFromGKit(session, existing);
+        sessions.put(player.getUniqueId(), session);
+        openMainMenu(player, session);
+        player.sendMessage("§aEditing gkit §f" + existing.getDisplayName() + "§a.");
+    }
+
     public boolean handleInventoryClick(Player player, Inventory inventory, String title, int slot, org.bukkit.event.inventory.ClickType clickType, ItemStack clicked) {
         Session session = sessions.get(player.getUniqueId());
         if (session == null) return false;
@@ -137,7 +161,7 @@ public class KitEditorManager {
             return true;
         }
         if (title.startsWith(TITLE_PREVIEW_PREFIX)) {
-            if (slot == 45) openMainMenu(player, session);
+            handlePreviewClick(player, session, slot, clickType);
             return true;
         }
         return false;
@@ -427,24 +451,64 @@ public class KitEditorManager {
         openEnchantMenu(player, session, session.enchantTarget, session.returnFromEnchant);
     }
 
+    private void handlePreviewClick(Player player, Session session, int slot, org.bukkit.event.inventory.ClickType clickType) {
+        if (slot == 45) {
+            session.previewSelectedToken = null;
+            openMainMenu(player, session);
+            return;
+        }
+
+        if (!clickType.isLeftClick()) return;
+        if (slot < 0 || slot >= 45) return;
+
+        String token = session.previewSlotTokens.get(slot);
+        if (token == null) return;
+
+        if (session.previewSelectedToken == null) {
+            session.previewSelectedToken = token;
+            player.sendMessage("§eSelected item position. Left-click another item to swap.");
+            return;
+        }
+
+        if (session.previewSelectedToken.equals(token)) {
+            session.previewSelectedToken = null;
+            player.sendMessage("§7Selection cleared.");
+            return;
+        }
+
+        ensurePreviewOrder(session);
+        int first = session.previewOrder.indexOf(session.previewSelectedToken);
+        int second = session.previewOrder.indexOf(token);
+        if (first >= 0 && second >= 0) {
+            Collections.swap(session.previewOrder, first, second);
+            player.sendMessage("§aSwapped item positions.");
+            session.previewSelectedToken = null;
+            openPreviewMenu(player, session);
+        }
+    }
+
     private void finalizeCreation(Player player, Session session) {
+        ensurePreviewOrder(session);
         List<ItemStack> items = new ArrayList<>();
 
-        for (Map.Entry<String, ItemStack> entry : session.selectedItems.entrySet()) {
-            ItemStack item = entry.getValue().clone();
-            applyVanillaEnchants(session, entry.getKey(), item);
-            if (session.type == CreationType.GKIT) {
-                addCustomEnchantMarker(session, entry.getKey(), item);
+        for (String token : session.previewOrder) {
+            if (token.startsWith("SEL:")) {
+                String key = token.substring(4);
+                ItemStack selected = session.selectedItems.get(key);
+                if (selected == null) continue;
+                ItemStack item = selected.clone();
+                applyVanillaEnchants(session, key, item);
+                if (session.type == CreationType.GKIT) {
+                    addCustomEnchantMarker(session, key, item);
+                }
+                items.add(item);
+            } else if (token.startsWith("EXTRA:")) {
+                String key = token.substring(6);
+                ItemStack extra = session.extraItems.get(key);
+                if (extra != null) items.add(extra.clone());
+            } else if (token.equals("XP") && session.xpBottleValue > 0) {
+                items.add(createCustomXpBottle(session.xpBottleValue));
             }
-            items.add(item);
-        }
-
-        for (ItemStack extra : session.extraItems.values()) {
-            items.add(extra.clone());
-        }
-
-        if (session.xpBottleValue > 0) {
-            items.add(createCustomXpBottle(session.xpBottleValue));
         }
 
         if (items.isEmpty()) {
@@ -590,12 +654,7 @@ public class KitEditorManager {
     }
 
     private ItemStack baseItem(Material material, boolean gkitDefaults) {
-        ItemStack item = new ItemStack(material);
-        if (gkitDefaults && isArmor(material)) {
-            item.addUnsafeEnchantment(Enchantment.PROTECTION_ENVIRONMENTAL, 5);
-            item.addUnsafeEnchantment(Enchantment.DURABILITY, 3);
-        }
-        return item;
+        return new ItemStack(material);
     }
 
     private ItemStack decoratedSelectable(Session session, Material material) {
@@ -630,9 +689,6 @@ public class KitEditorManager {
             lore.add("§7Not selected");
             lore.add("§7LClick: Select");
             lore.add("§7Shift+RClick: Configure enchants");
-            if (session.type == CreationType.GKIT && isArmor(material)) {
-                lore.add("§bGKit default: Prot V + Unbreaking III");
-            }
             meta.setLore(lore);
             item.setItemMeta(meta);
         }
@@ -734,9 +790,21 @@ public class KitEditorManager {
 
         ItemStack fallback = new ItemStack(Material.BOOK);
         ItemMeta meta = fallback.getItemMeta();
-        meta.setDisplayName("§f§l" + tierName + " Enchant Book");
+        meta.setDisplayName(tierColor(tierName) + "§l" + tierName + " Enchant Book");
         fallback.setItemMeta(meta);
         return fallback;
+    }
+
+    private String tierColor(String tierName) {
+        return switch (tierName.toUpperCase(Locale.ROOT)) {
+            case "SIMPLE" -> "§7";
+            case "UNIQUE" -> "§a";
+            case "ELITE" -> "§b";
+            case "ULTIMATE" -> "§d";
+            case "LEGENDARY" -> "§6";
+            case "SOUL" -> "§5";
+            default -> "§f";
+        };
     }
 
     private ItemStack miscSelectable(Session session, String key, ItemStack base) {
@@ -899,30 +967,30 @@ public class KitEditorManager {
     private void openPreviewMenu(Player player, Session session) {
         Inventory inv = Bukkit.createInventory(null, 54, TITLE_PREVIEW_PREFIX + session.displayName);
 
-        List<ItemStack> items = new ArrayList<>();
+        ensurePreviewOrder(session);
+        session.previewSlotTokens.clear();
+        int slot = 0;
+        for (String token : session.previewOrder) {
+            if (slot >= 45) break;
+            ItemStack item = previewItemForToken(session, token);
+            if (item == null) continue;
 
-        for (Map.Entry<String, ItemStack> entry : session.selectedItems.entrySet()) {
-            ItemStack item = entry.getValue().clone();
-            applyVanillaEnchants(session, entry.getKey(), item);
-            // Annotate custom enchant selections in lore so they're visible
-            if (session.type == CreationType.GKIT) {
-                Set<String> customs = session.customEnchantSelections.getOrDefault(entry.getKey(), Collections.emptySet());
-                if (!customs.isEmpty()) {
-                    ItemMeta meta = item.getItemMeta();
-                    List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
-                    lore.add("§bCustom enchants:");
-                    for (String id : customs) lore.add("  §7• §b" + id);
-                    meta.setLore(lore);
-                    item.setItemMeta(meta);
-                }
+            ItemMeta meta = item.getItemMeta();
+            List<String> lore = meta != null && meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
+            lore.add("§8");
+            if (session.previewSelectedToken != null && session.previewSelectedToken.equals(token)) {
+                lore.add("§eSelected for swap");
+            } else {
+                lore.add("§7Left click to select/swap position");
             }
-            items.add(item);
-        }
-        for (ItemStack extra : session.extraItems.values()) items.add(extra.clone());
-        if (session.xpBottleValue > 0) items.add(createCustomXpBottle(session.xpBottleValue));
+            if (meta != null) {
+                meta.setLore(lore);
+                item.setItemMeta(meta);
+            }
 
-        for (int i = 0; i < Math.min(items.size(), 45); i++) {
-            inv.setItem(i, items.get(i));
+            inv.setItem(slot, item);
+            session.previewSlotTokens.put(slot, token);
+            slot++;
         }
 
         inv.setItem(45, named(Material.ARROW, "§eBack", List.of("§7Return to main menu")));
@@ -937,6 +1005,242 @@ public class KitEditorManager {
         } else {
             openToolsMenu(player, session);
         }
+    }
+
+    private void loadSessionFromGKit(Session session, GKit gkit) {
+        int rawIndex = 0;
+        for (ItemStack stack : gkit.getItemsCopy()) {
+            if (stack == null || stack.getType() == Material.AIR) continue;
+
+            ItemStack item = stack.clone();
+            String materialKey = item.getType().name();
+
+            if (item.getType() == Material.EXPERIENCE_BOTTLE && isEditorXpBottle(item)) {
+                session.xpBottleValue = extractXpValue(item);
+                continue;
+            }
+
+            String crateTier = extractCrateTier(item);
+            if (crateTier != null) {
+                session.extraItems.put("CRATE_" + crateTier, item);
+                continue;
+            }
+
+            String miscKey = detectMiscKey(item);
+            if (miscKey != null) {
+                session.extraItems.put("MISC_" + miscKey, item);
+                continue;
+            }
+
+            boolean selectable = isSelectableMaterial(item.getType());
+            boolean duplicateSelected = session.selectedItems.containsKey(materialKey);
+            if (selectable && !duplicateSelected) {
+                session.selectedItems.put(materialKey, item.clone());
+                if (!item.getEnchantments().isEmpty()) {
+                    session.vanillaEnchantSelections.put(materialKey, new HashMap<>(item.getEnchantments()));
+                }
+            } else {
+                session.extraItems.put("RAW_" + (rawIndex++), item.clone());
+            }
+
+            ItemMeta meta = item.getItemMeta();
+            if (meta != null) {
+                String csv = meta.getPersistentDataContainer().get(new NamespacedKey(plugin, "gkit_custom_enchants"), PersistentDataType.STRING);
+                if (csv != null && !csv.isBlank()) {
+                    Set<String> selected = new LinkedHashSet<>();
+                    for (String id : csv.split(",")) {
+                        String clean = id.trim().toLowerCase(Locale.ROOT);
+                        if (!clean.isEmpty()) selected.add(clean);
+                    }
+                    if (!selected.isEmpty()) {
+                        session.customEnchantSelections.put(materialKey, selected);
+                    }
+                } else if (session.type == CreationType.GKIT) {
+                    Set<String> detected = detectCustomEnchantIds(item);
+                    if (!detected.isEmpty()) {
+                        session.customEnchantSelections.put(materialKey, detected);
+                    }
+                }
+            }
+        }
+        ensurePreviewOrder(session);
+    }
+
+    private Set<String> detectCustomEnchantIds(ItemStack item) {
+        Set<String> out = new LinkedHashSet<>();
+        Plugin fe = plugin.getServer().getPluginManager().getPlugin("FactionEnchants");
+        if (fe == null || item == null) return out;
+        try {
+            Object enchantManager = fe.getClass().getMethod("getEnchantmentManager").invoke(fe);
+            Method getEnchantmentsOnItem = enchantManager.getClass().getMethod("getEnchantmentsOnItem", ItemStack.class);
+            Object raw = getEnchantmentsOnItem.invoke(enchantManager, item);
+            if (!(raw instanceof Map<?, ?> map) || map.isEmpty()) return out;
+
+            for (Object enchant : map.keySet()) {
+                if (enchant == null) continue;
+                String id = null;
+                for (String methodName : List.of("getName", "getId", "getDisplayName")) {
+                    try {
+                        Object value = enchant.getClass().getMethod(methodName).invoke(enchant);
+                        if (value != null && !String.valueOf(value).isBlank()) {
+                            id = String.valueOf(value).trim().toLowerCase(Locale.ROOT).replace(' ', '_');
+                            break;
+                        }
+                    } catch (Exception ignored) {
+                    }
+                }
+                if (id != null && !id.isBlank()) {
+                    out.add(id);
+                }
+            }
+
+            if (!out.isEmpty()) {
+                return out;
+            }
+
+            // Fallback: map stripped lore names back to enchant IDs.
+            Method getAllEnchantments = enchantManager.getClass().getMethod("getAllEnchantments");
+            Object allRaw = getAllEnchantments.invoke(enchantManager);
+            if (!(allRaw instanceof Collection<?> allEnchants) || allEnchants.isEmpty()) {
+                return out;
+            }
+
+            Map<String, String> byDisplayName = new HashMap<>();
+            for (Object enchant : allEnchants) {
+                if (enchant == null) continue;
+                Object idRaw = enchant.getClass().getMethod("getId").invoke(enchant);
+                Object displayRaw = enchant.getClass().getMethod("getDisplayName").invoke(enchant);
+                if (idRaw == null || displayRaw == null) continue;
+
+                String id = String.valueOf(idRaw).trim().toLowerCase(Locale.ROOT);
+                String plainDisplay = strip(String.valueOf(displayRaw)).toLowerCase(Locale.ROOT);
+                if (!id.isEmpty() && !plainDisplay.isEmpty()) {
+                    byDisplayName.put(plainDisplay, id);
+                }
+            }
+
+            if (!byDisplayName.isEmpty() && item.hasItemMeta() && item.getItemMeta().hasLore()) {
+                for (String loreLine : item.getItemMeta().getLore()) {
+                    String plain = strip(loreLine).toLowerCase(Locale.ROOT).trim();
+                    if (plain.isEmpty()) continue;
+                    String withoutRoman = plain.replaceAll("\\s+[ivxlcdm]+$", "").trim();
+                    String withoutNumber = plain.replaceAll("\\s+\\d+$", "").trim();
+
+                    String id = byDisplayName.get(withoutRoman);
+                    if (id == null) id = byDisplayName.get(withoutNumber);
+                    if (id != null) {
+                        out.add(id);
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return out;
+    }
+
+    private boolean isSelectableMaterial(Material material) {
+        for (Material[] set : GEAR_SETS) {
+            for (Material gear : set) {
+                if (gear == material) return true;
+            }
+        }
+        return TOOL_OPTIONS.contains(material);
+    }
+
+    private boolean isEditorXpBottle(ItemStack item) {
+        ItemMeta meta = item.getItemMeta();
+        return meta != null && meta.hasDisplayName() && strip(meta.getDisplayName()).toLowerCase(Locale.ROOT).contains("xp bottle");
+    }
+
+    private int extractXpValue(ItemStack item) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null || !meta.hasDisplayName()) return 0;
+        String plain = strip(meta.getDisplayName()).replaceAll("[^0-9]", "");
+        if (plain.isEmpty()) return 0;
+        try {
+            return Integer.parseInt(plain);
+        } catch (NumberFormatException ex) {
+            return 0;
+        }
+    }
+
+    private String extractCrateTier(ItemStack item) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return null;
+        return meta.getPersistentDataContainer().get(new NamespacedKey(plugin, "crate_tier"), PersistentDataType.STRING);
+    }
+
+    private String detectMiscKey(ItemStack item) {
+        String plainName = item.hasItemMeta() && item.getItemMeta().hasDisplayName()
+                ? strip(item.getItemMeta().getDisplayName()).toLowerCase(Locale.ROOT)
+                : "";
+        if (plainName.contains("black scroll")) return "BLACK_SCROLL";
+        if (plainName.contains("unique") && plainName.contains("book")) return "BOOK_UNIQUE";
+        if (plainName.contains("elite") && plainName.contains("book")) return "BOOK_ELITE";
+        if (plainName.contains("ultimate") && plainName.contains("book")) return "BOOK_ULTIMATE";
+        if (plainName.contains("legendary") && plainName.contains("book")) return "BOOK_LEGENDARY";
+        if (plainName.contains("soul") && plainName.contains("book")) return "BOOK_SOUL";
+        return null;
+    }
+
+    private void ensurePreviewOrder(Session session) {
+        LinkedHashSet<String> order = new LinkedHashSet<>(session.previewOrder);
+
+        for (String key : session.selectedItems.keySet()) {
+            order.add("SEL:" + key);
+        }
+        for (String key : session.extraItems.keySet()) {
+            order.add("EXTRA:" + key);
+        }
+        if (session.xpBottleValue > 0) order.add("XP");
+
+        order.removeIf(token -> {
+            if (token.startsWith("SEL:")) return !session.selectedItems.containsKey(token.substring(4));
+            if (token.startsWith("EXTRA:")) return !session.extraItems.containsKey(token.substring(6));
+            if (token.equals("XP")) return session.xpBottleValue <= 0;
+            return true;
+        });
+
+        session.previewOrder.clear();
+        session.previewOrder.addAll(order);
+    }
+
+    private ItemStack previewItemForToken(Session session, String token) {
+        if (token.startsWith("SEL:")) {
+            String key = token.substring(4);
+            ItemStack selected = session.selectedItems.get(key);
+            if (selected == null) return null;
+
+            ItemStack item = selected.clone();
+            applyVanillaEnchants(session, key, item);
+            if (session.type == CreationType.GKIT) {
+                addCustomEnchantMarker(session, key, item);
+                Set<String> customs = session.customEnchantSelections.getOrDefault(key, Collections.emptySet());
+                if (!customs.isEmpty()) {
+                    ItemMeta meta = item.getItemMeta();
+                    List<String> lore = meta != null && meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
+                    lore.add("§bCustom enchants:");
+                    for (String id : customs) lore.add("  §7• §b" + id);
+                    if (meta != null) {
+                        meta.setLore(lore);
+                        item.setItemMeta(meta);
+                    }
+                }
+            }
+            return item;
+        }
+
+        if (token.startsWith("EXTRA:")) {
+            String key = token.substring(6);
+            ItemStack extra = session.extraItems.get(key);
+            return extra == null ? null : extra.clone();
+        }
+
+        if (token.equals("XP") && session.xpBottleValue > 0) {
+            return createCustomXpBottle(session.xpBottleValue);
+        }
+
+        return null;
     }
 
     private void clearExistingArmorSlot(Session session, Material newMat) {
@@ -1058,7 +1362,12 @@ public class KitEditorManager {
         private final Map<String, ItemStack> extraItems = new LinkedHashMap<>();
         private final Map<String, Map<Enchantment, Integer>> vanillaEnchantSelections = new HashMap<>();
         private final Map<String, Set<String>> customEnchantSelections = new HashMap<>();
+        private final List<String> previewOrder = new ArrayList<>();
+        private final Map<Integer, String> previewSlotTokens = new HashMap<>();
+        private String previewSelectedToken;
         private int xpBottleValue = 0;
+        private boolean editingExisting = false;
+        private String originalName;
 
         private Session(CreationType type, String name, String displayName) {
             this.type = type;

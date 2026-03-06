@@ -9,10 +9,12 @@ public class KitCommand implements CommandExecutor {
 
     private final RankKitManager rankKitManager;
     private final KitEditorManager kitEditorManager;
+    private final KitsCommand kitsCommand;
 
-    public KitCommand(RankKitManager rankKitManager, KitEditorManager kitEditorManager) {
+    public KitCommand(RankKitManager rankKitManager, KitEditorManager kitEditorManager, KitsCommand kitsCommand) {
         this.rankKitManager = rankKitManager;
         this.kitEditorManager = kitEditorManager;
+        this.kitsCommand = kitsCommand;
     }
 
     @Override
@@ -23,8 +25,7 @@ public class KitCommand implements CommandExecutor {
         }
 
         if (args.length == 0) {
-            player.sendMessage("§cUsage: /kit <name>");
-            player.sendMessage("§cUsage: /kit create [name]");
+            kitsCommand.openGui(player);
             return true;
         }
 

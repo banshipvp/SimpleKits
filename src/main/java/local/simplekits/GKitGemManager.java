@@ -25,6 +25,7 @@ public class GKitGemManager {
     private final NamespacedKey gkitCustomEnchantsKey;
     private final Random random = new Random();
     private final Map<UUID, Set<String>> unlockedKits = new HashMap<>();
+    private static final Map<String, String> ENCHANT_ID_ALIASES = createEnchantAliasMap();
 
     public GKitGemManager(SimpleKitsPlugin plugin, KitManager kitManager) {
         this.plugin = plugin;
@@ -218,12 +219,20 @@ public class GKitGemManager {
         return generated;
     }
 
+    public List<ItemStack> createPreviewSet(GKit kit) {
+        return createRandomDiamondSet(kit);
+    }
+
     private ItemStack applyRandomizedCustomEnchants(ItemStack item, String kitName) {
         if (item == null || !item.hasItemMeta()) return item;
         Plugin fe = plugin.getServer().getPluginManager().getPlugin("FactionEnchants");
         if (fe == null) return item;
 
         try {
+            ItemStack working = item.clone();
+            ItemMeta meta = working.getItemMeta();
+            String csv = meta.getPersistentDataContainer().get(gkitCustomEnchantsKey, PersistentDataType.STRING);
+
             Object enchantManager = fe.getClass().getMethod("getEnchantmentManager").invoke(fe);
 
             Method getEnchantment = enchantManager.getClass().getMethod("getEnchantment", String.class);
@@ -239,76 +248,215 @@ public class GKitGemManager {
                     removeEnchantment = method;
                 }
             }
-            if (applyEnchantment == null || removeEnchantment == null) return item;
+            if (applyEnchantment == null || removeEnchantment == null) return working;
 
-            Map<?, ?> existing = (Map<?, ?>) getEnchantmentsOnItem.invoke(enchantManager, item);
+            Map<?, ?> existing = (Map<?, ?>) getEnchantmentsOnItem.invoke(enchantManager, working);
             for (Object customEnchant : new ArrayList<>(existing.keySet())) {
-                item = (ItemStack) removeEnchantment.invoke(enchantManager, item, customEnchant);
+                working = (ItemStack) removeEnchantment.invoke(enchantManager, working, customEnchant);
             }
 
+            Set<String> preferredIds = new LinkedHashSet<>();
             Set<String> selectedIds = new LinkedHashSet<>();
-            ItemMeta meta = item.getItemMeta();
-            String csv = meta.getPersistentDataContainer().get(gkitCustomEnchantsKey, PersistentDataType.STRING);
             if (csv != null && !csv.isBlank()) {
                 for (String id : csv.split(",")) {
                     String clean = id.trim().toLowerCase(Locale.ROOT);
-                    if (!clean.isEmpty()) selectedIds.add(clean);
+                    if (!clean.isEmpty()) {
+                        preferredIds.add(resolveEnchantId(clean));
+                    }
                 }
             }
 
-            if (item.getType().name().endsWith("_CHESTPLATE")) {
-                selectedIds.add("overload");
+            List<String> required = requiredEnchantsForItem(working.getType());
+            for (String requiredId : required) {
+                selectedIds.add(resolveEnchantId(requiredId));
             }
-            if (item.getType().name().endsWith("_SWORD")) {
-                selectedIds.add("rage");
-            }
-            if (kitName.equals("miner") && item.getType().name().endsWith("_SHOVEL")) {
-                selectedIds.add("detonate");
-            }
+            preferredIds.removeAll(selectedIds);
 
-            List<Object> applicablePool = new ArrayList<>();
-            Collection<?> all = (Collection<?>) getAllEnchantments.invoke(enchantManager);
-            for (Object enchant : all) {
-                Method canApplyTo = enchant.getClass().getMethod("canApplyTo", ItemStack.class);
-                boolean applies = (boolean) canApplyTo.invoke(enchant, item);
-                if (applies) {
-                    // Heroic enchants are excluded from all gkit rolls.
-                    Object tier = enchant.getClass().getMethod("getTier").invoke(enchant);
-                    String tierName = (String) tier.getClass().getMethod("name").invoke(tier);
-                    if ("HEROIC".equals(tierName)) continue;
-                    applicablePool.add(enchant);
-                }
-            }
-            if (applicablePool.isEmpty()) return item;
+            int[] range = resolveEnchantRange(kitName, working.getType());
+            int targetTotal = range[0] + random.nextInt((range[1] - range[0]) + 1);
+            targetTotal = Math.min(9, Math.max(0, targetTotal));
 
             Set<String> appliedIds = new LinkedHashSet<>();
 
             for (String id : selectedIds) {
-                if (appliedIds.size() >= 9) break;
-                Object enchant = getEnchantment.invoke(enchantManager, id);
+                String resolvedId = resolveEnchantId(id);
+                Object enchant = getEnchantment.invoke(enchantManager, resolvedId);
                 if (enchant == null) continue;
+                if (isHeroicEnchant(enchant)) continue;
                 int maxLevel = (int) enchant.getClass().getMethod("getMaxLevel").invoke(enchant);
-                int rolled = 1 + random.nextInt(Math.max(1, maxLevel));
-                item = (ItemStack) applyEnchantment.invoke(enchantManager, item, enchant, rolled);
-                appliedIds.add(id);
+                int level = Math.min(3, Math.max(1, maxLevel));
+                working = (ItemStack) applyEnchantment.invoke(enchantManager, working, enchant, level);
+                Map<?, ?> now = (Map<?, ?>) getEnchantmentsOnItem.invoke(enchantManager, working);
+                if (containsEnchantId(now, resolvedId)) {
+                    appliedIds.add(resolvedId);
+                }
             }
 
-            int targetCount = 4 + random.nextInt(6); // 4..9
-            Collections.shuffle(applicablePool, random);
-            for (Object enchant : applicablePool) {
-                if (appliedIds.size() >= 9 || appliedIds.size() >= targetCount) break;
-                String id = ((String) enchant.getClass().getMethod("getId").invoke(enchant)).toLowerCase(Locale.ROOT);
-                if (appliedIds.contains(id)) continue;
-                int maxLevel = (int) enchant.getClass().getMethod("getMaxLevel").invoke(enchant);
-                int rolled = 1 + random.nextInt(Math.max(1, maxLevel));
-                item = (ItemStack) applyEnchantment.invoke(enchantManager, item, enchant, rolled);
-                appliedIds.add(id);
+            int remaining = Math.max(0, targetTotal - appliedIds.size());
+
+            if (remaining > 0 && !preferredIds.isEmpty()) {
+                List<String> preferredPool = new ArrayList<>(preferredIds);
+                Collections.shuffle(preferredPool, random);
+                for (String preferredId : preferredPool) {
+                    if (remaining <= 0 || appliedIds.size() >= 9) break;
+                    Object enchant = getEnchantment.invoke(enchantManager, preferredId);
+                    if (enchant == null || isHeroicEnchant(enchant)) continue;
+
+                    int maxLevel = (int) enchant.getClass().getMethod("getMaxLevel").invoke(enchant);
+                    int rolled = 1 + random.nextInt(Math.max(1, maxLevel));
+                    working = (ItemStack) applyEnchantment.invoke(enchantManager, working, enchant, rolled);
+                    Map<?, ?> now = (Map<?, ?>) getEnchantmentsOnItem.invoke(enchantManager, working);
+                    if (containsEnchantId(now, preferredId)) {
+                        appliedIds.add(preferredId);
+                        remaining--;
+                    }
+                }
             }
+
+            if (remaining > 0 && appliedIds.size() < 9) {
+                Collection<?> all = (Collection<?>) getAllEnchantments.invoke(enchantManager);
+                if (all != null && !all.isEmpty()) {
+                    List<Object> pool = new ArrayList<>();
+                    for (Object enchant : all) {
+                        if (enchant == null || isHeroicEnchant(enchant)) continue;
+                        String id = resolveEnchantId(getEnchantId(enchant));
+                        if (id.isBlank() || appliedIds.contains(id)) continue;
+                        pool.add(enchant);
+                    }
+
+                    Collections.shuffle(pool, random);
+                    for (Object enchant : pool) {
+                        if (remaining <= 0 || appliedIds.size() >= 9) break;
+                        String id = resolveEnchantId(getEnchantId(enchant));
+                        if (id.isBlank() || appliedIds.contains(id)) continue;
+
+                        int maxLevel = (int) enchant.getClass().getMethod("getMaxLevel").invoke(enchant);
+                        int rolled = 1 + random.nextInt(Math.max(1, maxLevel));
+                        working = (ItemStack) applyEnchantment.invoke(enchantManager, working, enchant, rolled);
+                        Map<?, ?> now = (Map<?, ?>) getEnchantmentsOnItem.invoke(enchantManager, working);
+                        if (containsEnchantId(now, id)) {
+                            appliedIds.add(id);
+                            remaining--;
+                        }
+                    }
+                }
+            }
+
+            return working;
         } catch (Exception ex) {
             plugin.getLogger().warning("Failed to apply randomized custom gkit enchants: " + ex.getMessage());
         }
 
         return item;
+    }
+
+    private int[] resolveEnchantRange(String kitName, Material material) {
+        if (material == null) return new int[] {0, 0};
+        String mat = material.name();
+        boolean customEnchantable = mat.contains("SWORD")
+                || mat.contains("HELMET")
+                || mat.contains("CHESTPLATE")
+                || mat.contains("LEGGINGS")
+                || mat.contains("BOOTS")
+                || mat.contains("BOW")
+                || mat.contains("PICKAXE")
+                || mat.contains("SHOVEL")
+                || mat.contains("AXE");
+        if (!customEnchantable) return new int[] {0, 0};
+
+        boolean starterProfile = "starter".equalsIgnoreCase(kitName)
+                || mat.contains("PICKAXE")
+                || mat.contains("SHOVEL")
+                || mat.contains("AXE");
+        return starterProfile ? new int[] {4, 9} : new int[] {6, 9};
+    }
+
+    private boolean containsEnchantId(Map<?, ?> enchantMap, String expectedId) {
+        if (enchantMap == null || expectedId == null || expectedId.isBlank()) return false;
+        String normalizedExpected = resolveEnchantId(expectedId);
+        for (Object enchant : enchantMap.keySet()) {
+            String id = resolveEnchantId(getEnchantId(enchant));
+            if (!id.isBlank() && id.equalsIgnoreCase(normalizedExpected)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String getEnchantId(Object enchant) {
+        if (enchant == null) return "";
+        try {
+            Object raw = enchant.getClass().getMethod("getId").invoke(enchant);
+            return raw == null ? "" : String.valueOf(raw).trim().toLowerCase(Locale.ROOT);
+        } catch (Exception ignored) {
+            return "";
+        }
+    }
+
+    private boolean isHeroicEnchant(Object enchant) {
+        if (enchant == null) return false;
+        String[] methodNames = {"getTier", "getEnchantTier"};
+        for (String methodName : methodNames) {
+            try {
+                Object tier = enchant.getClass().getMethod(methodName).invoke(enchant);
+                if (tier == null) continue;
+                String tierName = tier.toString().toUpperCase(Locale.ROOT);
+                if (tierName.contains("HEROIC")) return true;
+                try {
+                    Object tierId = tier.getClass().getMethod("name").invoke(tier);
+                    if (tierId != null && String.valueOf(tierId).toUpperCase(Locale.ROOT).contains("HEROIC")) {
+                        return true;
+                    }
+                } catch (Exception ignored) {
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        return false;
+    }
+
+    private List<String> requiredEnchantsForItem(Material material) {
+        if (material == null) return List.of();
+        String key = material.name();
+        if (key.contains("SWORD")) {
+            return List.of("rage", "silence", "lifesteal");
+        }
+        if (key.contains("HELMET")) {
+            return List.of("drunk", "implants");
+        }
+        if (key.contains("CHESTPLATE")) {
+            return List.of("overload", "aegis", "diminish", "guardians");
+        }
+        if (key.contains("LEGGINGS")) {
+            return List.of("obsidianshield|obishield", "enlighted|enlightened", "cactus", "voodoo");
+        }
+        if (key.contains("BOOTS")) {
+            return List.of("gears", "springs", "rocketescape|rocket_escape");
+        }
+        return List.of();
+    }
+
+    private static Map<String, String> createEnchantAliasMap() {
+        Map<String, String> aliases = new HashMap<>();
+        aliases.put("enlightened", "enlighted");
+        aliases.put("rocketescape", "rocket_escape");
+        aliases.put("obishield", "obsidianshield");
+        return aliases;
+    }
+
+    private String resolveEnchantId(String input) {
+        if (input == null) return "";
+        String raw = input.trim().toLowerCase(Locale.ROOT);
+        if (raw.contains("|")) {
+            String[] aliases = raw.split("\\|");
+            for (String alias : aliases) {
+                String cleaned = alias.trim().toLowerCase(Locale.ROOT);
+                if (!cleaned.isBlank()) {
+                    return ENCHANT_ID_ALIASES.getOrDefault(cleaned, cleaned);
+                }
+            }
+        }
+        return ENCHANT_ID_ALIASES.getOrDefault(raw, raw);
     }
 
     private ItemStack createRandomArmorPiece(GKit kit, Material material, String pieceName) {

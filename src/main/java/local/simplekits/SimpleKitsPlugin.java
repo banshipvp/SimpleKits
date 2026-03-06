@@ -31,14 +31,15 @@ public class SimpleKitsPlugin extends JavaPlugin {
         // Load any custom kits/gkits created via the editor (survives restarts)
         kitEditorManager.loadSavedKits();
 
-        KitsCommand kitsCommand = new KitsCommand(rankKitManager);
+        KitsCommand kitsCommand = new KitsCommand(rankKitManager, kitEditorManager);
 
         // Register commands
-        getCommand("gkits").setExecutor(new GKitsCommand(this, kitManager));
+        GKitsCommand gKitsCommand = new GKitsCommand(this, kitManager, kitEditorManager);
+        getCommand("gkits").setExecutor(gKitsCommand);
         getCommand("kits").setExecutor(kitsCommand);
-        getCommand("gkit").setExecutor(new GKitCommand(kitManager, gkitGemManager, kitEditorManager));
+        getCommand("gkit").setExecutor(new GKitCommand(kitManager, gkitGemManager, kitEditorManager, gKitsCommand));
         getCommand("gkitroll").setExecutor(new GKitRollCommand(kitManager, gkitGemManager));
-        getCommand("kit").setExecutor(new KitCommand(rankKitManager, kitEditorManager));
+        getCommand("kit").setExecutor(new KitCommand(rankKitManager, kitEditorManager, kitsCommand));
         getCommand("kitcreate").setExecutor((sender, command, label, args) -> {
             if (!(sender instanceof org.bukkit.entity.Player player)) {
                 sender.sendMessage("§cThis command can only be used by players.");
@@ -71,13 +72,31 @@ public class SimpleKitsPlugin extends JavaPlugin {
             }
             return true;
         });
+        getCommand("gkitedit").setExecutor(new GKitEditCommand(kitEditorManager));
         getCommand("gkitgem").setExecutor(new GKitGemCommand(kitManager, gkitGemManager));
         getCommand("gkitlock").setExecutor(new GKitLockCommand(gkitGemManager));
         getCommand("kitdelete").setExecutor(new KitDeleteCommand(rankKitManager, kitManager));
+        getCommand("gkitdelete").setExecutor(new KitDeleteCommand(rankKitManager, kitManager));
         GKitUnlockCommand gkitUnlockCommand = new GKitUnlockCommand(kitManager, gkitGemManager);
         getCommand("gkitunlock").setExecutor(gkitUnlockCommand);
         getCommand("gkitunlock").setTabCompleter(gkitUnlockCommand);
         getCommand("spawner").setExecutor(new SpawnerCommand(spawnerManager));
+
+            // Register tab completers
+            SimpleKitsTabCompleter tabCompleter = new SimpleKitsTabCompleter(kitManager, rankKitManager);
+            getCommand("gkits").setTabCompleter(tabCompleter);
+            getCommand("kits").setTabCompleter(tabCompleter);
+            getCommand("gkit").setTabCompleter(tabCompleter);
+            getCommand("gkitroll").setTabCompleter(tabCompleter);
+            getCommand("kit").setTabCompleter(tabCompleter);
+            getCommand("gkitcreate").setTabCompleter(tabCompleter);
+            getCommand("gkitedit").setTabCompleter(tabCompleter);
+            getCommand("gkitgem").setTabCompleter(tabCompleter);
+            getCommand("gkitlock").setTabCompleter(tabCompleter);
+            getCommand("kitcreate").setTabCompleter(tabCompleter);
+            getCommand("kitdelete").setTabCompleter(tabCompleter);
+            getCommand("gkitdelete").setTabCompleter(tabCompleter);
+            getCommand("spawner").setTabCompleter(tabCompleter);
 
         // Register listeners
         Bukkit.getPluginManager().registerEvents(new GKitGemListener(gkitGemManager, kitManager), this);
