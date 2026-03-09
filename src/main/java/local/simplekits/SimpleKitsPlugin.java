@@ -30,6 +30,8 @@ public class SimpleKitsPlugin extends JavaPlugin {
         rankKitManager.loadDefaultKits();
         // Load any custom kits/gkits created via the editor (survives restarts)
         kitEditorManager.loadSavedKits();
+        // Load persisted gkit unlocks
+        gkitGemManager.loadUnlockedKits();
 
         KitsCommand kitsCommand = new KitsCommand(rankKitManager, kitEditorManager);
 
@@ -80,7 +82,10 @@ public class SimpleKitsPlugin extends JavaPlugin {
         GKitUnlockCommand gkitUnlockCommand = new GKitUnlockCommand(kitManager, gkitGemManager);
         getCommand("gkitunlock").setExecutor(gkitUnlockCommand);
         getCommand("gkitunlock").setTabCompleter(gkitUnlockCommand);
-        getCommand("spawner").setExecutor(new SpawnerCommand(spawnerManager));
+        GKitPieceCommand gkitPieceCommand = new GKitPieceCommand(kitManager, gkitGemManager);
+        getCommand("gkitpiece").setExecutor(gkitPieceCommand);
+        SpawnerCommand spawnerCommand = new SpawnerCommand(spawnerManager);
+        getCommand("spawner").setExecutor(spawnerCommand);
 
             // Register tab completers
             SimpleKitsTabCompleter tabCompleter = new SimpleKitsTabCompleter(kitManager, rankKitManager);
@@ -96,7 +101,7 @@ public class SimpleKitsPlugin extends JavaPlugin {
             getCommand("kitcreate").setTabCompleter(tabCompleter);
             getCommand("kitdelete").setTabCompleter(tabCompleter);
             getCommand("gkitdelete").setTabCompleter(tabCompleter);
-            getCommand("spawner").setTabCompleter(tabCompleter);
+            getCommand("spawner").setTabCompleter(spawnerCommand);
 
         // Register listeners
         Bukkit.getPluginManager().registerEvents(new GKitGemListener(gkitGemManager, kitManager), this);
@@ -111,6 +116,7 @@ public class SimpleKitsPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        gkitGemManager.saveUnlockedKits();
         getLogger().info("SimpleKits disabled.");
     }
 

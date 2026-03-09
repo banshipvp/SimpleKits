@@ -1,7 +1,6 @@
 package local.simplekits;
 
 import org.bukkit.Material;
-import org.bukkit.block.Block;
 import org.bukkit.block.CreatureSpawner;
 import org.bukkit.entity.EntityType;
 import org.bukkit.inventory.ItemStack;
@@ -16,6 +15,7 @@ import java.util.*;
  */
 public class MysterySpawnerManager {
 
+    @SuppressWarnings("unused")
     private final JavaPlugin plugin;
     
     // Spawner drop chances (as percentages)

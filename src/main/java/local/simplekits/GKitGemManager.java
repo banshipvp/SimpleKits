@@ -2,6 +2,7 @@ package local.simplekits;
 
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -10,6 +11,8 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 
+import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.*;
 
@@ -26,12 +29,46 @@ public class GKitGemManager {
     private final Random random = new Random();
     private final Map<UUID, Set<String>> unlockedKits = new HashMap<>();
     private static final Map<String, String> ENCHANT_ID_ALIASES = createEnchantAliasMap();
+    private File unlockedKitsFile;
 
     public GKitGemManager(SimpleKitsPlugin plugin, KitManager kitManager) {
         this.plugin = plugin;
         this.kitManager = kitManager;
         this.gemKey = new NamespacedKey(plugin, "gkit_gem");
         this.gkitCustomEnchantsKey = new NamespacedKey(plugin, "gkit_custom_enchants");
+        this.unlockedKitsFile = new File(plugin.getDataFolder(), "unlocked_kits.yml");
+    }
+
+    // ── Persistence ───────────────────────────────────────────────────────────
+
+    public void loadUnlockedKits() {
+        unlockedKits.clear();
+        if (!unlockedKitsFile.exists()) return;
+        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(unlockedKitsFile);
+        for (String uuidStr : yaml.getKeys(false)) {
+            try {
+                UUID uuid = UUID.fromString(uuidStr);
+                List<String> kits = yaml.getStringList(uuidStr);
+                if (!kits.isEmpty()) {
+                    unlockedKits.put(uuid, new HashSet<>(kits));
+                }
+            } catch (IllegalArgumentException ignored) {}
+        }
+        plugin.getLogger().info("[GKitGemManager] Loaded unlocked kits for " + unlockedKits.size() + " players.");
+    }
+
+    public void saveUnlockedKits() {
+        YamlConfiguration yaml = new YamlConfiguration();
+        for (Map.Entry<UUID, Set<String>> entry : unlockedKits.entrySet()) {
+            if (!entry.getValue().isEmpty()) {
+                yaml.set(entry.getKey().toString(), new ArrayList<>(entry.getValue()));
+            }
+        }
+        try {
+            yaml.save(unlockedKitsFile);
+        } catch (IOException e) {
+            plugin.getLogger().warning("[GKitGemManager] Failed to save unlocked_kits.yml: " + e.getMessage());
+        }
     }
 
     /**
@@ -125,7 +162,9 @@ public class GKitGemManager {
     public boolean unlockKitSilent(UUID playerId, String kitName) {
         if (kitManager.getKit(kitName) == null) return false;
         Set<String> playerKits = unlockedKits.computeIfAbsent(playerId, k -> new HashSet<>());
-        return playerKits.add(kitName.toLowerCase());
+        boolean added = playerKits.add(kitName.toLowerCase());
+        if (added) saveUnlockedKits();
+        return added;
     }
 
     /**
@@ -158,6 +197,7 @@ public class GKitGemManager {
         if (isFirstUnlock) {
             Set<String> playerKits = unlockedKits.computeIfAbsent(player.getUniqueId(), k -> new HashSet<>());
             playerKits.add(kitName.toLowerCase());
+            saveUnlockedKits(); // persist immediately
 
             player.sendMessage("§a§l✓ Kit Unlocked!");
             player.sendMessage("§7You have unlocked the §6" + kit.getDisplayName() + " §7kit!");
@@ -169,6 +209,26 @@ public class GKitGemManager {
             player.sendMessage("§7Use §e/gkits §7to claim it if available.");
             return false;
         }
+    }
+
+    /**
+     * Give a single random gear piece from a kit to a player.
+     * Does NOT set cooldowns or require kit unlock — used by envoys/admin commands.
+     * Returns the ItemStack given, or null if the kit has no items.
+     */
+    public ItemStack giveRandomPiece(Player player, GKit kit) {
+        ItemStack[] items = kit.getItemsCopy();
+        if (items.length == 0) return null;
+
+        // Pick a random item from the kit's item set
+        ItemStack chosen = items[random.nextInt(items.length)];
+        ItemStack piece = applyRandomizedCustomEnchants(chosen.clone(), kit.getName().toLowerCase(java.util.Locale.ROOT));
+
+        var overflow = player.getInventory().addItem(piece.clone());
+        if (!overflow.isEmpty()) {
+            overflow.values().forEach(i -> player.getWorld().dropItemNaturally(player.getLocation(), i));
+        }
+        return piece;
     }
 
     /**
@@ -433,6 +493,9 @@ public class GKitGemManager {
         if (key.contains("BOOTS")) {
             return List.of("gears", "springs", "rocketescape|rocket_escape");
         }
+        if (key.contains("PICKAXE") || key.contains("SHOVEL")) {
+            return List.of("detonate", "autosmelt", "telepathy", "reforged");
+        }
         return List.of();
     }
 
@@ -459,6 +522,7 @@ public class GKitGemManager {
         return ENCHANT_ID_ALIASES.getOrDefault(raw, raw);
     }
 
+    @SuppressWarnings("unused")
     private ItemStack createRandomArmorPiece(GKit kit, Material material, String pieceName) {
         ItemStack piece = new ItemStack(material, 1);
         ItemMeta meta = piece.getItemMeta();

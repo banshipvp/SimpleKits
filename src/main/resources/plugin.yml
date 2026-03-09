@@ -39,9 +39,13 @@ commands:
     description: Unlock gkits for players (admin)
     usage: /gkitunlock <player <name> <kit|all>|all <kit>>
     permission: simplekits.admin
+  gkitpiece:
+    description: Give a random gear piece from a gkit to a player (admin/envoy)
+    usage: /gkitpiece give <player> <kit>
+    permission: simplekits.admin
   spawner:
-    description: Get a mystery spawner
-    usage: /spawner [open]
+    description: Get a mystery spawner or give one to a player.
+    usage: /spawner [open] | /spawner give <player> <mobtype|mystery>
   kit:
     description: Claim a specific kit or create one
     usage: /kit <name>|create [name]

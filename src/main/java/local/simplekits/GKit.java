@@ -1,7 +1,6 @@
 package local.simplekits;
 
 import org.bukkit.inventory.ItemStack;
-import java.util.*;
 
 /**
  * Represents a gkit with custom enchanted items

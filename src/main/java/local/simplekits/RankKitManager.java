@@ -1,7 +1,7 @@
 package local.simplekits;
 
-import net.luckperms.api.LuckPerms;
-import net.luckperms.api.LuckPermsProvider;
+// import net.luckperms.api.LuckPerms;
+// import net.luckperms.api.LuckPermsProvider;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.enchantments.Enchantment;
@@ -98,6 +98,7 @@ public class RankKitManager {
         kits.put(sovereign.getName(), sovereign);
     }
 
+    @SuppressWarnings("unused")
     private ItemStack createNamedItem(Material material, int amount, String name) {
         ItemStack item = new ItemStack(material, amount);
         ItemMeta meta = item.getItemMeta();
@@ -122,7 +123,7 @@ public class RankKitManager {
             lore.add("§7");
             lore.add("§6✦ Single Use ✦");
             meta.setLore(lore);
-            meta.getPersistentDataContainer().set(new NamespacedKey("simplecrates", "crate_tier"), PersistentDataType.STRING, tierId);
+            meta.getPersistentDataContainer().set(NamespacedKey.fromString("simplecrates:crate_tier"), PersistentDataType.STRING, tierId);
             crate.setItemMeta(meta);
         }
         return crate;
@@ -165,14 +166,15 @@ public class RankKitManager {
     }
 
     public RankTier getPlayerRank(Player player) {
-        try {
-            LuckPerms api = LuckPermsProvider.get();
-            var user = api.getUserManager().getUser(player.getUniqueId());
-            if (user != null) {
-                return RankTier.fromGroup(user.getPrimaryGroup());
-            }
-        } catch (Throwable ignored) {
-        }
+        // LuckPerms integration disabled - add net.luckperms:api dependency to enable
+        // try {
+        //     LuckPerms api = LuckPermsProvider.get();
+        //     var user = api.getUserManager().getUser(player.getUniqueId());
+        //     if (user != null) {
+        //         return RankTier.fromGroup(user.getPrimaryGroup());
+        //     }
+        // } catch (Throwable ignored) {
+        // }
 
         if (player.hasPermission("group.sovereign") || player.hasPermission("simplekits.rank.sovereign")) return RankTier.SOVEREIGN;
         if (player.hasPermission("group.warlord") || player.hasPermission("simplekits.rank.warlord")) return RankTier.WARLORD;

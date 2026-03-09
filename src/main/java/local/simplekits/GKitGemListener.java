@@ -30,29 +30,39 @@ public class GKitGemListener implements Listener {
         // Check if it's a gkit gem
         if (gemManager.isGKitGem(item)) {
             event.setCancelled(true);
-            
+
             String kitName = gemManager.extractKitNameFromGem(item);
-            
+
             if (kitName == null) {
                 player.sendMessage("§cCould not identify kit from gem.");
                 return;
             }
-            
+
+            // Block use if already unlocked — gem is NOT consumed
+            if (gemManager.hasUnlockedKit(player.getUniqueId(), kitName)) {
+                player.sendMessage("§c§lKit Already Unlocked!");
+                player.sendMessage("§7You already have the §6" + kitName + " §7kit unlocked.");
+                player.sendMessage("§7Use §e/gkits §7to claim it.");
+                return;
+            }
+
             // Check if player can claim the kit
             if (!kitManager.canClaimKit(player.getUniqueId(), kitName)) {
                 int remainingHours = kitManager.getRemainingCooldownHours(player.getUniqueId(), kitName);
                 player.sendMessage("§cKit is on cooldown for §6" + remainingHours + " more hours§c.");
                 return;
             }
-            
+
             // Unlock the kit
-            gemManager.unlockKit(player, kitName);
-            
-            // Remove gem from inventory
-            if (item.getAmount() > 1) {
-                item.setAmount(item.getAmount() - 1);
-            } else {
-                player.getInventory().remove(item);
+            boolean unlocked = gemManager.unlockKit(player, kitName);
+
+            // Only consume the gem if unlock succeeded
+            if (unlocked) {
+                if (item.getAmount() > 1) {
+                    item.setAmount(item.getAmount() - 1);
+                } else {
+                    player.getInventory().remove(item);
+                }
             }
         }
     }

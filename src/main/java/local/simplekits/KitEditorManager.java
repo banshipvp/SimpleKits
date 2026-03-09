@@ -423,7 +423,7 @@ public class KitEditorManager {
             String key = meta.getPersistentDataContainer().get(new NamespacedKey(plugin, "vanilla_key"), PersistentDataType.STRING);
             Integer lvl = meta.getPersistentDataContainer().get(new NamespacedKey(plugin, "vanilla_lvl"), PersistentDataType.INTEGER);
             if (key == null || lvl == null) return;
-            Enchantment enchantment = Enchantment.getByName(key);
+            Enchantment enchantment = Enchantment.getByKey(NamespacedKey.minecraft(key.toLowerCase(java.util.Locale.ROOT)));
             if (enchantment == null) return;
 
             Map<Enchantment, Integer> selected = session.vanillaEnchantSelections.computeIfAbsent(session.enchantTarget.name(), k -> new HashMap<>());
@@ -641,7 +641,7 @@ public class KitEditorManager {
     private void applyVanillaEnchants(Session session, String itemKey, ItemStack item) {
         Map<Enchantment, Integer> enchants = session.vanillaEnchantSelections.get(itemKey);
         if (enchants != null) {
-            enchants.forEach(item::addUnsafeEnchantment);
+            enchants.forEach((ench, lvl) -> item.addUnsafeEnchantment(ench, lvl));
         }
     }
 
@@ -714,6 +714,7 @@ public class KitEditorManager {
         return crate;
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private ItemStack createSimpleCratesItem(String tier) {
         Plugin cratesPlugin = plugin.getServer().getPluginManager().getPlugin("SimpleCrates");
         if (cratesPlugin != null) {
@@ -774,6 +775,7 @@ public class KitEditorManager {
         return item;
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private ItemStack createRandomEnchantBook(String tierName) {
         Plugin fe = plugin.getServer().getPluginManager().getPlugin("FactionEnchants");
         if (fe != null) {
@@ -880,7 +882,7 @@ public class KitEditorManager {
                 "§7Left click: Set this level",
                 "§7Right click: Remove this enchant"
         ));
-        meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "vanilla_key"), PersistentDataType.STRING, option.enchantment().getName());
+        meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "vanilla_key"), PersistentDataType.STRING, option.enchantment().getKey().getKey());
         meta.getPersistentDataContainer().set(new NamespacedKey(plugin, "vanilla_lvl"), PersistentDataType.INTEGER, option.level());
         if (selected) {
             meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
@@ -1354,7 +1356,7 @@ public class KitEditorManager {
         private final String name;
         private final String displayName;
 
-        private MenuState menuState = MenuState.MAIN;
+        @SuppressWarnings("unused") private MenuState menuState = MenuState.MAIN;
         private MenuState returnFromEnchant = MenuState.MAIN;
         private Material enchantTarget;
 
@@ -1366,8 +1368,8 @@ public class KitEditorManager {
         private final Map<Integer, String> previewSlotTokens = new HashMap<>();
         private String previewSelectedToken;
         private int xpBottleValue = 0;
-        private boolean editingExisting = false;
-        private String originalName;
+        @SuppressWarnings("unused") private boolean editingExisting = false;
+        @SuppressWarnings("unused") private String originalName;
 
         private Session(CreationType type, String name, String displayName) {
             this.type = type;
